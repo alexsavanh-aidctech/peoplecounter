@@ -46,12 +46,25 @@ AI Engine ──webhook──► POST /api/events ──► Express ──► Po
 `npm run test:edge` — dedup, occupancy clamp ที่ 0, cross-day reset **ผ่านครบ**
 (ดูผลรันล่าสุดตอน verify)
 
-## Phase 2 — รอทำ (frontend + live view)
+## Phase 2 — เสร็จแล้ว (frontend + live view)
 
-- React + Vite, **reuse Theme/สี/ฟอนต์ของ WebLog**
-- Live view 2 จอ (ซ้าย/ขวา) ด้วย `hls.js` อ่าน URL จาก `GET /api/live-config`
-- KPI card (เข้า/ออก/คงเหลือ ต่อฝั่ง + รวม) + กราฟราย ชม. จาก `/api/summary` + `/api/timeseries`
-- setup MediaMTX (RTSP Dahua subtype=1 → HLS) ใน docker-compose (placeholder ไว้แล้ว)
+- **React 18 + Vite 5 + recharts** (match WebLog เป๊ะ) — `frontend/` สร้างใหม่ทั้งหมด
+- **Theme Tokens** ดึงค่าจริงจาก WebLog เติมใน `CLAUDE.md` แล้ว → `frontend/src/theme.css`
+  (สี/ฟอนต์ Inter+Noto Sans Lao/spacing ตรง WebLog)
+- **Live view** — `CameraView.jsx` + `LiveGrid.jsx`: 2 จอ (responsive → เรียงลง),
+  hls.js + native HLS fallback (Safari), cleanup ตอน unmount, placeholder "ກ້ອງບໍ່ພ້ອມ"
+  เมื่อ stream ไม่พร้อม (ไม่ให้ทั้งหน้าพัง)
+- **Dashboard** — `KpiCards.jsx` (ต่อฝั่ง เข้า=success/ออก=danger + การ์ดรวม),
+  `TrafficChart.jsx` (recharts เข้า vs ออก ราย ชม. + filter ฝั่ง ซ้าย/ขวา/รวม)
+- **App shell** — header (ชื่อลาว + วันที่ + ปุ่ม refresh) + reset occupancy (confirm ก่อนยิง);
+  state loading/error/data ครบ, refresh ด้วยปุ่มเท่านั้น (ไม่ auto-poll)
+- **labels.js** — เก็บข้อความลาวที่เดียว (⚠️ ควรให้ native speaker review wording)
+
+**Verify:** `npm run build` ผ่าน (837 modules, 0 error); wire กับ backend+mock ผ่าน Vite proxy —
+summary/timeseries/live-config/reset ตอบจริง; screenshot ยืนยัน theme ตรง WebLog + KPI/กราฟ
+ขึ้นเลขจริง (in/out รวมตรงกัน) + placeholder กล้องสวย
+
+**รอทำต่อ:** setup MediaMTX (RTSP Dahua subtype=1 → HLS) ใน docker-compose (placeholder ไว้แล้ว)
 
 ## Phase 3 — ต่อกล้องจริงบน server 10.0.100.46
 

@@ -166,6 +166,8 @@ CREATE TABLE occupancy_state (
 - **Frontend:** React + Vite — **Theme/สี/ฟอนต์/component เหมือน WebLog** (คัด style มา reuse)
 - **Live streaming:** MediaMTX (Docker) แปลง RTSP → HLS; frontend เล่นด้วย `hls.js`
 - **Deployment:** Docker Compose (backend + postgres + mediamtx)
+- **Version control:** GitHub — repo `alexsavanh-aidctech/peoplecounter`
+  (ต่างจาก WebLog ที่ใช้ GitLab; ชื่อ folder/repo คือ `peoplecounter` ไม่มีขีด)
 
 ## Coding Style & Conventions (เหมือน WebLog)
 
@@ -194,6 +196,80 @@ CREATE TABLE occupancy_state (
   (`subtype=0` = main stream ชัด, `subtype=1` = sub stream เล็ก — **ใช้ subtype=1 สำหรับ live view บนเว็บ** ประหยัด bandwidth)
 - HLS หน่วง ~5-10 วิ (รับได้สำหรับ monitoring; ไม่ใช่ security-critical)
 - frontend ใช้ `hls.js`; ถ้า browser รองรับ HLS native (Safari) เล่น URL ตรงได้
+
+## Frontend (Phase 2)
+
+Frontend เป็น React + Vite สร้างใหม่ทั้งหมด (Phase 1 ทำแค่ backend) — **ต้องใช้ Theme เดียวกับ WebLog**
+(ดู Theme tokens ด้านล่าง) UI เป็น**ภาษาลาว** (เหมือน WebLog ที่แปลลาวเต็ม)
+
+**Layout (บนลงล่าง):**
+1. **Header** — ชื่อระบบ + ปุ่ม refresh (manual, ไม่ auto-poll) + วันที่วันนี้
+2. **Live view** — กล้อง 2 จอเรียงข้างกัน (responsive: จอเล็กเรียงลง):
+   - ซ้าย = AIDC Tech (`gate=left`), ขวา = AIDC (`gate=right`)
+   - แต่ละจอมีป้ายชื่อประตู + เล่น HLS ด้วย `hls.js` จาก URL ที่ได้จาก `GET /api/live-config`
+   - ถ้า stream เล่นไม่ได้/ยังไม่ต่อกล้อง → แสดง placeholder "ກ້ອງບໍ່ພ້ອມ" (ไม่ให้ทั้งหน้าพัง)
+3. **Dashboard สรุป (ใต้กล้อง):**
+   - KPI card ต่อฝั่ง: เข้า (ເຂົ້າ) / ออก (ອອກ) / คงเหลือในอาคาร (ຄงเหลือ) — 2 ฝั่ง + การ์ดรวม total
+   - กราฟรายชั่วโมง (เข้า vs ออก) จาก `GET /api/timeseries` — filter เลือกฝั่งได้ (ซ้าย/ขวา/รวม)
+   - ปุ่ม reset occupancy manual (ยิง `POST /api/occupancy/reset`) — ยืนยันก่อน reset
+
+**Data fetching:**
+- **refresh ด้วยปุ่มเท่านั้น** (ไม่ auto-poll / ไม่ WebSocket) — เบา server, สอดคล้องกับ WebLog ที่ตัด WebSocket ออก
+- โหลดครั้งแรกตอนเปิดหน้า + ทุกครั้งที่กดปุ่ม refresh
+- state: loading / error / data ครบ (หน้าไม่ค้างขาวถ้า API ล่ม — โชว์ error card)
+
+**Response shape ที่ frontend ต้องการ (ล็อคแล้ว — API ต้องคืนตามนี้เป๊ะ):**
+- `api.summary()` → `{ gates: { left: {in,out,occupancy}, right: {in,out,occupancy} }, total: {in,out,occupancy}, date }`
+- `api.timeseries(from, to, gate)` → `{ series: [ { t, in, out } ] }`
+- `api.liveConfig()` → `{ cameras: [ { gate, name, hlsUrl } ] }`
+
+> เหมือน WebLog: frontend ที่รันได้แล้วผูกกับ shape นี้ — ถ้าจะเปลี่ยน shape ให้ยืนยันก่อน
+
+## Theme Tokens (จาก WebLog — ค่าจริง ✅ เติมแล้ว)
+
+> ดึงค่าจริงจาก WebLog frontend (`frontend/src/styles.css`, `theme.js`, `index.html`) แล้ว
+> Phase 2 สร้าง `frontend/src/theme.css` ตามบล็อกนี้เป๊ะ — **ห้ามเดาสีเอง**
+> Chart library = **recharts** (เหมือน WebLog); React 18 + Vite 5; ฟอนต์โหลดจาก Google Fonts
+
+```css
+:root {
+  /* ── colors ── */
+  --bg: #080b14;                        /* page background */
+  --bg-card: #10131f;                   /* card / panel */
+  --bg-card-alt: #141a28;               /* inputs / segmented / badges */
+  --text: #e7eaf2;                      /* body text */
+  --heading: #f3f5fb;                   /* headings / KPI value */
+  --text-muted: #9aa2b6;                /* labels / secondary */
+  --text-muted2: #7c8499;               /* hints / subtitles (dimmer) */
+  --accent: #f0589f;                    /* primary — pink (active, focus, buttons) */
+  --accent-2: #5b8def;                  /* secondary — blue (time-range active, KPI border) */
+  --border: rgba(255,255,255,0.07);
+  --border-strong: rgba(255,255,255,0.10);
+  --success: #2dd4a7;                   /* "เข้า" (in) — teal */
+  --danger: #f0604d;                    /* "ออก" (out) — red */
+
+  /* ── chart palette (in vs out) ── */
+  --chart-1: #2dd4a7;                   /* in  (= success) */
+  --chart-2: #f0604d;                   /* out (= danger) */
+
+  /* ── typography ── */
+  --font-family: 'Inter', 'Noto Sans Lao', system-ui, sans-serif;
+  --fs-heading: 25px;                   /* h1 / 700 */
+  --fs-body: 14px;                      /* body / td */
+  --fs-kpi: 34px;                       /* big KPI number / 700 */
+
+  /* ── spacing / shape ── */
+  --radius-card: 10px;
+  --radius-input: 7px;
+  --radius-btn: 8px;
+  --shadow-card: none;                          /* WebLog cards use border, not shadow */
+  --shadow-pop: 0 10px 30px rgba(0,0,0,0.45);   /* dropdowns / popovers */
+  --gap: 18px;                                  /* grid gap (kpi / chart rows) */
+}
+```
+
+**ฟอนต์ (index.html):** โหลด Inter (400;500;600;700;800) + Noto Sans Lao (400;500;600;700)
+จาก Google Fonts — `<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Lao:wght@400;500;600;700&display=swap">`
 
 ## สิ่งที่ควรถามก่อนทำ
 
