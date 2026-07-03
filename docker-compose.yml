@@ -1,0 +1,51 @@
+# People Counter — Phase 1 stack (postgres + backend).
+# MediaMTX (RTSP → HLS live view) lands in Phase 2 — see placeholder below.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-people}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-peoplecounter}
+      TZ: ${TZ:-Asia/Bangkok}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # Backend waits on this so migrations never race an unready DB.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-people} -d ${POSTGRES_DB:-peoplecounter}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PORT: ${PORT:-4100}
+      TZ: ${TZ:-Asia/Bangkok}
+      OCCUPANCY_RESET_HOUR: ${OCCUPANCY_RESET_HOUR:-0}
+      # Inside the compose network the DB host is the service name `postgres`.
+      DATABASE_URL: postgres://${POSTGRES_USER:-people}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-peoplecounter}
+      CAM_LEFT_NAME: ${CAM_LEFT_NAME:-AIDC Tech}
+      CAM_LEFT_HLS: ${CAM_LEFT_HLS:-}
+      CAM_RIGHT_NAME: ${CAM_RIGHT_NAME:-AIDC}
+      CAM_RIGHT_HLS: ${CAM_RIGHT_HLS:-}
+    ports:
+      - "${PORT:-4100}:${PORT:-4100}"
+
+  # ── Phase 2 (not yet) ──
+  # mediamtx:
+  #   image: bluenviron/mediamtx:latest
+  #   restart: unless-stopped
+  #   ports: ["8554:8554", "8888:8888"]   # RTSP in, HLS out
+  #   volumes: ["./mediamtx.yml:/mediamtx.yml"]
+
+volumes:
+  pgdata:

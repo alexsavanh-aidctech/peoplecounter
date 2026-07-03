@@ -1,0 +1,17 @@
+{
+  "name": "people-counter",
+  "version": "0.1.0",
+  "description": "People Counter Dashboard — count employees in/out per gate from AI line-crossing events",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node backend/src/server.js",
+    "mock": "node backend/scripts/mockEvents.js",
+    "purge": "node backend/scripts/purgeOld.js",
+    "test:edge": "node backend/scripts/testEdgeCases.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "pg": "^8.13.1"
+  }
+}
