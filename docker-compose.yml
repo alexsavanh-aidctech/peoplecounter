@@ -1,5 +1,5 @@
-# People Counter — Phase 1 stack (postgres + backend).
-# MediaMTX (RTSP → HLS live view) lands in Phase 2 — see placeholder below.
+# People Counter — full stack (postgres + backend + mediamtx).
+# Camera credentials are read from .env (gitignored); never hardcode them here.
 
 services:
   postgres:
@@ -33,19 +33,26 @@ services:
       OCCUPANCY_RESET_HOUR: ${OCCUPANCY_RESET_HOUR:-0}
       # Inside the compose network the DB host is the service name `postgres`.
       DATABASE_URL: postgres://${POSTGRES_USER:-people}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-peoplecounter}
+      # HLS base must be reachable by the BROWSER (host-facing), so it comes from
+      # .env: http://localhost:8888 on dev, http://10.0.100.46:8888 on server.
+      MEDIAMTX_HLS_BASE: ${MEDIAMTX_HLS_BASE:-http://localhost:8888}
       CAM_LEFT_NAME: ${CAM_LEFT_NAME:-AIDC Tech}
-      CAM_LEFT_HLS: ${CAM_LEFT_HLS:-}
       CAM_RIGHT_NAME: ${CAM_RIGHT_NAME:-AIDC}
-      CAM_RIGHT_HLS: ${CAM_RIGHT_HLS:-}
+      CAM_LEFT_TRANSCODE: ${CAM_LEFT_TRANSCODE:-0}
+      CAM_RIGHT_TRANSCODE: ${CAM_RIGHT_TRANSCODE:-0}
     ports:
       - "${PORT:-4100}:${PORT:-4100}"
 
-  # ── Phase 2 (not yet) ──
-  # mediamtx:
-  #   image: bluenviron/mediamtx:latest
-  #   restart: unless-stopped
-  #   ports: ["8554:8554", "8888:8888"]   # RTSP in, HLS out
-  #   volumes: ["./mediamtx.yml:/mediamtx.yml"]
+  # ── Phase 3 — MediaMTX: RTSP (Dahua) → HLS live view ──
+  mediamtx:
+    build: ./mediamtx
+    restart: unless-stopped
+    # Camera IP/user/pass + transcode flags come from .env (never committed).
+    # The entrypoint generates mediamtx.yml from these at start.
+    env_file: .env
+    ports:
+      - "8888:8888"   # HLS (browser)
+      - "8554:8554"   # RTSP (internal republish target for transcode)
 
 volumes:
   pgdata:

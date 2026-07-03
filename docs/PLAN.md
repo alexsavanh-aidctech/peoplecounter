@@ -64,12 +64,51 @@ AI Engine ──webhook──► POST /api/events ──► Express ──► Po
 summary/timeseries/live-config/reset ตอบจริง; screenshot ยืนยัน theme ตรง WebLog + KPI/กราฟ
 ขึ้นเลขจริง (in/out รวมตรงกัน) + placeholder กล้องสวย
 
-**รอทำต่อ:** setup MediaMTX (RTSP Dahua subtype=1 → HLS) ใน docker-compose (placeholder ไว้แล้ว)
+## Phase 3 — เสร็จแล้ว (MediaMTX + กล้องจริง, dev only)
 
-## Phase 3 — ต่อกล้องจริงบน server 10.0.100.46
+> ทำบนเครื่อง dev เท่านั้น — **ยังไม่แตะ server 10.0.100.46**
 
-- ใส่ RTSP credential จริงใน `.env`, verify HLS ออกจาก MediaMTX
-- ผูก cron รัน `purgeOld.js` รายวัน
+**Codec ที่เจอจริง (สำคัญ):** กล้องซ้าย AIDC Tech (IP อยู่ใน `.env`) sub stream (subtype=1) เป็น
+**H.265/HEVC** (`704x576 @ 25fps`) → browser เล่น HLS H.265 ไม่ได้ → **ต้อง transcode → H.264**
+(เปิดด้วย `CAM_LEFT_TRANSCODE=1`). กล้องขวา AIDC ยังไม่ต่อ (placeholder ใน `.env.example`).
+
+**สิ่งที่ทำ:**
+- **MediaMTX** (`mediamtx/Dockerfile` + `entrypoint.sh`) — base `bluenviron/mediamtx:1.11.3`
+  (pin ไว้) + ffmpeg บน alpine; **entrypoint generate `mediamtx.yml` ตอน start จาก env**
+  (credential ไม่เคยอยู่ใน image/ไฟล์ commit) มี 2 path `left`/`right`:
+  - `TRANSCODE=1` → `runOnDemand: ffmpeg ... -c:v libx264 ...` republish เป็น H.264 (on-demand)
+  - `TRANSCODE=0` → `source: rtsp://... sourceOnDemand: yes` (pull ตรง, สำหรับกล้อง H.264)
+- **config.js** — อ่าน `CAM_*_IP/USER/PASS`, `MEDIAMTX_HLS_BASE`, `CAM_*_TRANSCODE`;
+  สร้าง `hlsUrl = <base>/<gate>/index.m3u8` (backend ไม่แตะรหัสกล้อง — MediaMTX สร้าง RTSP เอง)
+- **`/api/live-config`** คืน HLS URL จริง; **frontend Phase 2 เล่นได้เลยไม่ต้องแก้**
+- **docker-compose** — เพิ่ม service `mediamtx` (build `./mediamtx`, `env_file: .env`, port 8888 HLS + 8554 RTSP)
+
+**Verify (dev):** ping กล้อง + RTSP 554 เปิด; `docker run` MediaMTX → request `left/index.m3u8`
+ได้ 200, master playlist `CODECS="avc1.42c01e"` (H.264 baseline = transcode ทำงาน);
+ffprobe/snapshot จาก HLS เห็นภาพจริง (โซนต้อนรับ AIDC Tech, timestamp ตรง);
+เปิด frontend → **จอซ้ายเล่นภาพสดจริง**, จอขวาโชว์ "ກ້ອງບໍ່ພ້ອມ" (placeholder ยังไม่ต่อ)
+
+**วิธีรันบน dev:**
+```
+docker build -t pc-mediamtx:dev ./mediamtx
+docker run -d --env-file .env -p 8888:8888 -p 8554:8554 pc-mediamtx:dev
+# ทดสอบแยกชั้น: เปิด http://localhost:8888/left/index.m3u8 ตรงใน VLC/browser
+#   เล่นได้ = ปัญหา (ถ้ามี) อยู่ที่ frontend↔MediaMTX;  เล่นไม่ได้ = MediaMTX↔กล้อง
+```
+
+**สิ่งที่ต้องเปลี่ยนตอนขึ้น server 10.0.100.46:**
+- `.env` → `MEDIAMTX_HLS_BASE=http://10.0.100.46:8888` (ต้องเป็น URL ที่ **browser** เข้าถึงได้ ไม่ใช่ localhost)
+- เปิด firewall port **8888** (HLS) บน server; 8554 ไม่ต้อง expose ออกนอกถ้าไม่จำเป็น
+- ใส่ IP/user/pass กล้องจริงทั้ง 2 ตัวใน `.env` ของ server + เช็ค subtype/codec กล้องขวา
+  (ถ้าเป็น H.265 ด้วย → `CAM_RIGHT_TRANSCODE=1`)
+- ถ้า CPU server จำกัด: transcode 2 ตัวพร้อมกินแรง — พิจารณาใช้ main stream H.264 ของกล้อง
+  (บางรุ่น subtype=0 เป็น H.264) หรือปรับ preset/resolution
+- network: MediaMTX container ต้อง route ไปถึง subnet ของกล้องได้ (เช็ค `10.0.99.x` reachable จาก server)
+
+## Phase 4 — เชื่อม AI Engine จริง
+
+- เขียน adapter map payload ของ AI → shape `/api/events` (`{gate,direction,trackId,ts}`)
+- ถ้า AI ส่งแค่ centroid → implement logic ใน `/api/events/crossing` (ตอนนี้ stub)
 
 ## Phase 4 — เชื่อม AI Engine จริง
 
