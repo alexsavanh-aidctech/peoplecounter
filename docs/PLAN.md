@@ -105,15 +105,34 @@ docker run -d --env-file .env -p 8888:8888 -p 8554:8554 pc-mediamtx:dev
   (บางรุ่น subtype=0 เป็น H.264) หรือปรับ preset/resolution
 - network: MediaMTX container ต้อง route ไปถึง subnet ของกล้องได้ (เช็ค `10.0.99.x` reachable จาก server)
 
-## Phase 4 — เชื่อม AI Engine จริง
+## Phase 4 — เชื่อมสัญญาณนับคนจากกล้อง Dahua จริง
 
-- เขียน adapter map payload ของ AI → shape `/api/events` (`{gate,direction,trackId,ts}`)
-- ถ้า AI ส่งแค่ centroid → implement logic ใน `/api/events/crossing` (ตอนนี้ stub)
+### Phase 4A — discovery (กล้องซ้าย AIDC Tech) — คืบหน้าแล้ว
+- **event code = `NumberStat`** — พบ rule จริงบนกล้อง: `VideoAnalyseRule[0][5]` `Class=NumberStat`,
+  `Enable=true`, `Name=NumberStat1`, `ObjectTypes=Human`, AreaID 1 (People Counting rule)
+- firmware นี้ **ไม่รองรับ `codes=[All]`** (attach 200 แต่ไม่ push); ต้อง subscribe `codes=[NumberStat]` ตรงๆ
+- **แก้ทิศ Enter/Exit ที่ web UI ของกล้องแล้ว** — เดินเทสทิศถูกต้อง
+- `backend/scripts/dahuaEventProbe.js` — probe subscribe event stream (digest auth, multipart),
+  connect + auth ผ่าน (HTTP 200); ดัมพ์ raw event ลง `docs/dahua_event_samples.log` (gitignored)
 
-## Phase 4 — เชื่อม AI Engine จริง
+### เทียบกับ RunCountApp (repo เพื่อนร่วมงาน) — ตัดสินแล้ว
+- RunCountApp = **throughput** (คนผ่าน = entered+exited) บน **NVR**, ดึงยอดด้วย **pull `videoStatServer` RPC2**,
+  live view = ภาพนิ่ง JPEG, เก็บ JSONL ไฟล์ (ไม่มี DB), **ไม่มี occupancy** — **คนละโจทย์กับเรา**
+- **ตัดสินใจ: เก็บ peoplecounter ไว้** (occupancy ต่อประตู + วิดีโอสด + Postgres + theme WebLog)
+  แต่ **จะลองยืมวิธี pull `videoStatServer`** มาแทน/เสริม event subscribe (อาจเสถียรกว่า)
+- สรุป RPC flow ของ RunCountApp ไว้ที่ **`docs/videostat_reference.md`** (login MD5 challenge →
+  factory.instance → startFind/doFind/stopFind, response `EnteredSubtotal/ExitedSubtotal`, delta+resilience)
 
-- เขียน adapter map payload ของ AI → shape `/api/events` (`{gate,direction,trackId,ts}`)
-- ถ้า AI ส่งแค่ centroid → implement logic ใน `/api/events/crossing` (ตอนนี้ stub)
+### รอทำวันจันทร์ (ที่ออฟฟิศ ต่อกล้องได้)
+- **รัน `node backend/scripts/videoStatProbe.js`** (เขียนเสร็จแล้ว) — พิสูจน์ว่า **กล้องเดี่ยว**ของเรา
+  ตอบ `videoStatServer` RPC ไหม (NVR รองรับแน่ แต่กล้องเดี่ยวยังไม่รู้) + เทียบยอดกับ OSD บนภาพ Live
+- **ตัดสินแนว Phase 4:** ตอบยอดได้ → เปลี่ยนเป็น **poll videoStatServer** (คิด occupancy = in−out);
+  ไม่ตอบ → อยู่กับ **event subscribe `NumberStat`** (เดินเทส capture event จริงให้ครบ)
+- **ทำกล้องขวา (AIDC)** — ใส่ IP/user/pass จริงใน `.env`, เช็ค codec/rule เหมือนซ้าย
+- (ปลายทาง) map camera→gate → gen trackId กันซ้ำ (ถ้าใช้ event) → `POST /api/events`
+
+> ทางเลือกสำรอง (ยังเปิดไว้): ถ้า AI Engine แยกต่างหากส่ง payload เอง → adapter map → `/api/events`
+> (`/api/events/crossing` ยัง stub รอ spec)
 
 ## จุดที่ต้องเช็คกับของจริง (อย่าเดา)
 
