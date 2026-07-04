@@ -64,6 +64,18 @@ body {
   gap: 24px;
   flex-wrap: wrap;
 }
+/* brand: logo chip + title. Logo art is dark navy, so it sits on a light chip
+   to stay legible on the dark header. */
+.brand { display: flex; align-items: center; gap: 14px; }
+.brand-logo {
+  height: 40px;
+  width: auto;
+  display: block;
+  background: #fff;
+  border-radius: 9px;
+  padding: 5px 9px;
+  box-shadow: var(--shadow-pop);
+}
 .header h1 {
   font-size: var(--fs-heading);
   font-weight: 700;

@@ -72,9 +72,12 @@ export default function App() {
   return (
     <div className="app">
       <header className="header">
-        <div>
-          <h1>{L.appTitle}</h1>
-          <div className="subtitle">{L.appSubtitle}</div>
+        <div className="brand">
+          <img className="brand-logo" src="/logo.png" alt="AIDC" />
+          <div>
+            <h1>{L.appTitle}</h1>
+            <div className="subtitle">{L.appSubtitle}</div>
+          </div>
         </div>
         <div className="header-right">
           <span className="badge">{todayLabel()}</span>
