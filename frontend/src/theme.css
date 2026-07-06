@@ -180,6 +180,28 @@ body {
   background: #05070d;
   object-fit: cover;
 }
+/* detection overlay: counting line + zone drawn from the camera's rule geometry */
+.detect-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+.detect-zone {
+  fill: rgba(240, 88, 159, 0.10);       /* accent (pink), faint */
+  stroke: rgba(240, 88, 159, 0.55);
+  stroke-width: 0.5;
+  vector-effect: non-scaling-stroke;
+}
+.detect-line {
+  fill: none;
+  stroke: #f5b53e;                       /* orange — the counting line */
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+  filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.6));
+}
 /* placeholder when a stream is unavailable */
 .camera-offline {
   display: flex;

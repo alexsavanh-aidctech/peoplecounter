@@ -21,6 +21,7 @@ function todayLabel() {
 export default function App() {
   const [summary, setSummary] = useState(null);
   const [cameras, setCameras] = useState([]);
+  const [geometryByGate, setGeometryByGate] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   // Bumped on every refresh so child charts refetch too.
@@ -39,6 +40,11 @@ export default function App() {
       ]);
       setSummary(summaryRes);
       setCameras(liveRes.cameras || []);
+      // Detection geometry is best-effort (camera RPC) — never block the dashboard on it.
+      api
+        .detectConfig()
+        .then((res) => setGeometryByGate(Object.fromEntries((res.cameras || []).map((c) => [c.gate, c.geometry]))))
+        .catch(() => setGeometryByGate({}));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -92,7 +98,7 @@ export default function App() {
       <div className="header-divider" />
 
       {/* Live view is always shown (cameras self-handle offline state). */}
-      <LiveGrid cameras={cameras} />
+      <LiveGrid cameras={cameras} geometryByGate={geometryByGate} />
 
       {error ? (
         <div className="state error">{L.error} — {error}</div>

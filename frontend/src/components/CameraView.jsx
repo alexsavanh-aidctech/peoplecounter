@@ -5,7 +5,7 @@ import { L } from '../labels.js';
 // One camera tile. Plays an HLS stream; on any failure (no URL yet, network,
 // decode) it falls back to an "offline" placeholder so a dead camera never
 // takes down the page.
-export default function CameraView({ name, hlsUrl }) {
+export default function CameraView({ name, hlsUrl, geometry }) {
   const videoRef = useRef(null);
   const [offline, setOffline] = useState(!hlsUrl);
 
@@ -57,14 +57,35 @@ export default function CameraView({ name, hlsUrl }) {
           {L.cameraOffline}
         </div>
       ) : (
-        <video
-          ref={videoRef}
-          className="camera-media"
-          autoPlay
-          muted
-          playsInline
-        />
+        <>
+          <video
+            ref={videoRef}
+            className="camera-media"
+            autoPlay
+            muted
+            playsInline
+          />
+          <DetectOverlay geometry={geometry} />
+        </>
       )}
     </div>
+  );
+}
+
+// Draws the detection zone (polygon) + counting line over the video. Coords are
+// normalized 0..1; the SVG stretches to the tile (preserveAspectRatio=none) so
+// it lines up with the object-fit: cover video regardless of tile size.
+function DetectOverlay({ geometry }) {
+  if (!geometry || (!geometry.line && !geometry.region)) return null;
+  const toPoints = (pts) => pts.map(([x, y]) => `${x * 100},${y * 100}`).join(' ');
+  return (
+    <svg className="detect-overlay" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+      {geometry.region && (
+        <polygon points={toPoints(geometry.region)} className="detect-zone" />
+      )}
+      {geometry.line && (
+        <polyline points={toPoints(geometry.line)} className="detect-line" />
+      )}
+    </svg>
   );
 }

@@ -40,6 +40,11 @@ export const api = {
     return request('/live-config');
   },
 
+  // { cameras: [ { gate, geometry: { line, region } | null } ] }
+  detectConfig() {
+    return request('/detect-config');
+  },
+
   // gate = 'left' | 'right' | 'all'
   resetOccupancy(gate = 'all') {
     const params = new URLSearchParams({ gate });

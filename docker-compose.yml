@@ -27,6 +27,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    # Camera IP/user/pass (for /api/detect-config geometry) come from .env.
+    env_file: .env
     environment:
       PORT: ${PORT:-4100}
       TZ: ${TZ:-Asia/Bangkok}

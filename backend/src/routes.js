@@ -4,8 +4,14 @@ import { Router } from 'express';
 import { config, GATES } from './config.js';
 import { query } from './db.js';
 import { recordEvent, resetOccupancy, businessDay } from './ingest.js';
+import { VideoStatClient } from './dahuaVideoStat.js';
 
 export const router = Router();
+
+// Detection geometry (counting line + zone) per camera, cached — it changes only
+// when someone re-draws the rule on the camera, so a 5-min cache is plenty.
+const geoCache = new Map(); // gate -> { at, geometry }
+const GEO_TTL_MS = 5 * 60 * 1000;
 
 // ── Ingest (from AI Engine) ──────────────────────────────────────────
 
@@ -133,6 +139,30 @@ router.get('/live-config', (_req, res) => {
       hlsUrl: c.hlsUrl,
     })),
   });
+});
+
+// Per-camera detection geometry for the live-view overlay (counting line + zone),
+// read from the camera over RPC and cached. Failure is non-fatal: the gate just
+// returns geometry: null and the frontend draws no overlay.
+router.get('/detect-config', async (_req, res) => {
+  const cameras = [];
+  for (const cam of config.cameras) {
+    let entry = geoCache.get(cam.gate);
+    if (!entry || Date.now() - entry.at > GEO_TTL_MS) {
+      let geometry = null;
+      if (cam.ip && cam.user && cam.pass) {
+        try {
+          geometry = await new VideoStatClient(cam).fetchGeometry();
+        } catch (err) {
+          console.error(`[detect-config] ${cam.gate}: ${err.message}`);
+        }
+      }
+      entry = { at: Date.now(), geometry };
+      geoCache.set(cam.gate, entry);
+    }
+    cameras.push({ gate: cam.gate, geometry: entry.geometry });
+  }
+  res.json({ cameras });
 });
 
 // Health — also pings the DB so a broken pool surfaces as unhealthy.

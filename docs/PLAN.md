@@ -178,10 +178,25 @@ docker run -d --env-file .env -p 8888:8888 -p 8554:8554 pc-mediamtx:dev
   `CAM_RIGHT_SWAP_INOUT=1`. ⚠️ ขวาหลัง swap ได้ occ 0 (ไม่ swap ได้ +3) — **ต้องเทียบ OSD หน้างาน**
   ถ้าโซน AIDC มีคนจริง → ขวากลับเป็น `swap=0`
 
-### รอทำต่อ
-- **เทียบ Enter/Exit กับ OSD** ต่อกล้อง → ล็อก `CAM_*_SWAP_INOUT` ให้ตรงจริง (ทั้งซ้าย+ขวา)
-- **กรอบตรวจจับบนภาพ (detection box)** — เปิด IVS rule/target display ที่กล้อง (burn ลงสตรีม);
-  ถ้าอยู่แค่ main stream → เพิ่ม option ต่อกล้องให้ MediaMTX ใช้ subtype=0
+### Detection overlay (เสร็จแล้ว 2026-07-06) ✅
+- กล้อง**ไม่ได้ burn กรอบ IVS ลงสตรีม** (เช็คแล้ว main+sub ไม่มี; ไม่มี toggle ผ่าน RPC) —
+  กล้องวาดกรอบเฉพาะใน web player ตัวเอง (client-side)
+- **กรอบต่อคน (bounding box) แบบ real-time = ไม่คุ้ม** (HLS หน่วง 5-10 วิ ไม่ sync กับ metadata)
+- **ทำแทน:** วาด **counting line + detection zone** ทับภาพสด (static overlay) จากพิกัด rule จริง
+  ในกล้อง — backend `GET /api/detect-config` อ่าน `VideoAnalyseRule` (NumberStat) ผ่าน RPC
+  (`configManager.getConfig`) → normalize 0..1 → frontend วาด SVG (เส้นส้ม + โซนชมพู) บน tile
+  - `dahuaVideoStat.js#fetchGeometry()`, route cache 5 นาที, fail = ไม่วาด (ไม่ทำหน้าพัง)
+  - verify: ทั้ง 2 กล้องเห็นเส้น+โซนตรงตำแหน่งจริง
+
+### Full stack via docker compose (เสร็จแล้ว 2026-07-06) ✅
+- `docker compose up -d --build` → postgres + backend + **poller (ต่อเนื่องทุก 30 วิ)** + mediamtx
+- backend เพิ่ม `env_file: .env` (ต้องใช้ cred กล้องสำหรับ detect-config)
+- verify: poller เติม DB จริง, summary/detect-config/live view ทำงานครบผ่าน compose
+- (frontend เป็น vite dev แยก ชี้ backend :4100 — deploy จริงค่อยเพิ่ม frontend service/บิลด์ static)
+
+### รอทำต่อ (เหลือที่ต้องพี่ช่วย)
+- **เทียบ Enter/Exit กับ OSD หน้างาน** → ล็อก `CAM_*_SWAP_INOUT` ให้ตรงจริง (ขวายัง occ 0)
+- deploy ขึ้น server 10.0.100.46 (เมื่อพร้อม) — ตาม checklist ด้านบน
 - **deploy ขึ้น server 10.0.100.46** (compose เต็ม stack: postgres+backend+mediamtx+poller;
   `MEDIAMTX_HLS_BASE=http://10.0.100.46:8888`, เปิด firewall 8888, ใส่ `.env` จริงบน server)
 - retention: ผูก cron รัน `purgeOld.js` (counting_events เก่า >30 วัน) — แม้ pull ไม่เขียน events

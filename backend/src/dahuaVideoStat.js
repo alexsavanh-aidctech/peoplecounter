@@ -145,6 +145,33 @@ export class VideoStatClient {
     this.object = null;
     return false;
   }
+
+  // Read the NumberStat rule's counting line + detection zone, normalized to
+  // 0..1 (device space is 0..8191) so the frontend can draw them over any tile
+  // size. Returns { line: [[x,y],[x,y]], region: [[x,y],...] } or null.
+  async fetchGeometry() {
+    if (!this.session) await this.login();
+    const norm = (v) => Math.min(1, Math.max(0, v / 8191));
+    const pt = (p) => (Array.isArray(p) && p.length >= 2 ? [norm(p[0]), norm(p[1])] : null);
+    const run = async () => {
+      const resp = await this.#rpc(RPC_PATH, { method: 'configManager.getConfig', params: { name: 'VideoAnalyseRule' } });
+      if (isSessionError(resp)) throw new SessionError('getConfig: session lost');
+      // table[channel] = array of rules; find the NumberStat one.
+      const table = resp?.params?.table;
+      const rules = Array.isArray(table) ? (table[this.cam.channel] || table[0] || []) : [];
+      const rule = (Array.isArray(rules) ? rules : []).find((r) => r && r.Class === 'NumberStat');
+      if (!rule?.Config) return null;
+      const line = (rule.Config.DetectLine || []).map(pt).filter(Boolean);
+      const region = (rule.Config.DetectRegion || []).map(pt).filter(Boolean);
+      return { line: line.length >= 2 ? line : null, region: region.length >= 3 ? region : null };
+    };
+    try {
+      return await run();
+    } catch (err) {
+      if (err instanceof SessionError) { await this.login(); return run(); }
+      throw err;
+    }
+  }
 }
 
 // Device "YYYY-MM-DD HH:mm:ss" (local time) -> Date instant.
