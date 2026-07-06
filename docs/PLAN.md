@@ -123,13 +123,30 @@ docker run -d --env-file .env -p 8888:8888 -p 8554:8554 pc-mediamtx:dev
 - สรุป RPC flow ของ RunCountApp ไว้ที่ **`docs/videostat_reference.md`** (login MD5 challenge →
   factory.instance → startFind/doFind/stopFind, response `EnteredSubtotal/ExitedSubtotal`, delta+resilience)
 
-### รอทำวันจันทร์ (ที่ออฟฟิศ ต่อกล้องได้)
-- **รัน `node backend/scripts/videoStatProbe.js`** (เขียนเสร็จแล้ว) — พิสูจน์ว่า **กล้องเดี่ยว**ของเรา
-  ตอบ `videoStatServer` RPC ไหม (NVR รองรับแน่ แต่กล้องเดี่ยวยังไม่รู้) + เทียบยอดกับ OSD บนภาพ Live
-- **ตัดสินแนว Phase 4:** ตอบยอดได้ → เปลี่ยนเป็น **poll videoStatServer** (คิด occupancy = in−out);
-  ไม่ตอบ → อยู่กับ **event subscribe `NumberStat`** (เดินเทส capture event จริงให้ครบ)
-- **ทำกล้องขวา (AIDC)** — ใส่ IP/user/pass จริงใน `.env`, เช็ค codec/rule เหมือนซ้าย
-- (ปลายทาง) map camera→gate → gen trackId กันซ้ำ (ถ้าใช้ event) → `POST /api/events`
+### ✅ videoStatProbe รันแล้ว (2026-07-06 ที่ออฟฟิศ) — **กล้องเดี่ยวตอบ RPC ได้!**
+- `node backend/scripts/videoStatProbe.js --gate left --channel 0` → **สำเร็จ**
+- login MD5 ✓ → `factory.instance` (object) ✓ → `startFind` ✓ → `doFind` คืน **23 แถวราย ชม.**
+- response ยืนยัน: `RuleName:"NumberStat"`, `AreaID:1`, `Channel:0`, field
+  **`EnteredSubtotal` / `ExitedSubtotal`** (ไม่มี PassbyTotal บนกล้องนี้ = 0)
+- ข้อมูลจริงวันนี้: Entered=9, Exited=15 (activity ช่วง 06:00–08:00)
+- **สรุป: วิธี pull ของ RunCountApp ใช้กับกล้อง Dahua เดี่ยวของเราได้** (ไม่จำกัดแค่ NVR)
+  → **แนวทาง Phase 4 = เปลี่ยนไป poll `videoStatServer`** (เก็บ backend/occupancy/live view/theme เดิม
+  เปลี่ยนแค่ที่มาตัวเลข: pull ราย ชม. → คิด delta → occupancy = Entered − Exited, clamp ≥ 0)
+
+⚠️ **ต้องเช็คก่อนทำจริง: occupancy = Entered − Exited = −6 (ติดลบ)**
+- เช้าออฟฟิศคนควร**เข้า > ออก** แต่ probe เห็น Exited(15) > Entered(9) → **ทิศน่าจะยังกลับด้าน**
+  ที่กล้อง (หรือคนค้างข้ามคืนเดินออกเช้านี้) — **ต้องเทียบ Enter/Exit กับ OSD บนภาพ Live**
+  แล้วสลับทิศที่ web UI กล้องถ้ากลับ (แก้ที่กล้อง ไม่ใช่ที่โค้ด)
+- ยืนยัน invariant: ถ้ายอดถอยหลัง/ข้ามวัน ต้อง clamp (เรามี `GREATEST(0, in-out)` อยู่แล้ว);
+  occupancy จากเส้นเดียว + reset เที่ยงคืน อาจ drift ถ้ามีคนค้างข้ามวัน — จดไว้เป็น known issue
+
+### รอทำต่อ
+- **เทียบ Enter/Exit กับ OSD** + แก้ทิศที่กล้องถ้ากลับด้าน (จุดข้างบน)
+- **ทำกล้องขวา (AIDC)** — ใส่ IP/user/pass จริงใน `.env` (`CAM_RIGHT_*`), รัน `videoStatProbe --gate right`
+- **เขียน Phase 4B (poll service)** — service ใน compose: login → poll `videoStatServer` ทุก N วินาที
+  ต่อกล้อง → คิด delta ต่อ ชม. → upsert เข้า `traffic_hourly` + คำนวณ occupancy ต่อ gate
+  (ยังไม่เริ่ม — รอยืนยันทิศ + ตัดสิน design การ map ยอดสะสม → event/occupancy ของเรา)
+- ทางเลือก event `NumberStat` (Phase 4A) ยังเปิดไว้เป็น plan B (pull ชนะเพราะไม่ต้อง dedup/walk-capture)
 
 > ทางเลือกสำรอง (ยังเปิดไว้): ถ้า AI Engine แยกต่างหากส่ง payload เอง → adapter map → `/api/events`
 > (`/api/events/crossing` ยัง stub รอ spec)
