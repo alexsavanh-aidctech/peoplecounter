@@ -13,6 +13,7 @@ function num(value, fallback) {
 const hlsBase = (process.env.MEDIAMTX_HLS_BASE || 'http://localhost:8888').replace(/\/$/, '');
 
 // Camera config is grouped per gate so routes/live-config never touch env directly.
+// Includes RPC creds + poll settings for the videoStatServer poller (Phase 4B).
 function camera(gate, defaultName) {
   const prefix = gate === 'left' ? 'CAM_LEFT' : 'CAM_RIGHT';
   return {
@@ -21,6 +22,15 @@ function camera(gate, defaultName) {
     hlsUrl: `${hlsBase}/${gate}/index.m3u8`,
     // transcode flag surfaced for docs/diagnostics; MediaMTX does the actual work.
     transcode: process.env[`${prefix}_TRANSCODE`] === '1',
+    // ── videoStatServer pull (poller) ──
+    ip: process.env[`${prefix}_IP`] || '',
+    user: process.env[`${prefix}_USER`] || '',
+    pass: process.env[`${prefix}_PASS`] || '',
+    channel: num(process.env[`${prefix}_RPC_CHANNEL`], 0), // direct camera = 0
+    areaId: num(process.env[`${prefix}_AREA_ID`], 1), // NumberStat rule AreaID
+    // Some doors have the count line oriented so the device's Entered = leaving.
+    // Set CAM_*_SWAP_INOUT=1 to swap Entered<->Exited into our in/out (verify vs OSD).
+    swapInOut: process.env[`${prefix}_SWAP_INOUT`] === '1',
   };
 }
 
@@ -33,6 +43,8 @@ export const config = {
   // Hour (0-23) at which occupancy resets each day. Kept configurable in case a
   // site's "day" starts at a shift boundary rather than midnight.
   occupancyResetHour: num(process.env.OCCUPANCY_RESET_HOUR, 0),
+  // How often the poller pulls videoStatServer counts (seconds).
+  pollIntervalSeconds: num(process.env.POLL_INTERVAL_SECONDS, 30),
   cameras,
 };
 

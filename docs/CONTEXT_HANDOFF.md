@@ -90,8 +90,14 @@ node backend/scripts/videoStatProbe.js --gate left --channel 0
 - Edge headless (`--screenshot`) เคยแฮงก์เป็นช่วงๆ — ใช้ verify ได้แต่ไม่เสถียร
 - ตอนขึ้น server: `MEDIAMTX_HLS_BASE=http://10.0.100.46:8888` (ต้องเป็น URL ที่ browser เข้าถึง), เปิด firewall 8888
 
+## Phase 4B — เสร็จแล้ว (2026-07-06)
+- ทั้ง 2 กล้อง (ซ้าย/ขวา) probe videoStatServer ผ่าน; **poller** (`backend/src/poller.js` +
+  `dahuaVideoStat.js`) poll ยอดราย ชม. → SET `counting_hourly` + `occupancy_state`
+- verify กล้องจริง: ซ้าย occ 18, ขวา occ 3, รวม 21; dashboard เห็นข้อมูลจริง + กล้องสด 2 จอ
+- ทิศสลับด้วย `.env` (`CAM_LEFT_SWAP_INOUT=1`, right=0) — poller service อยู่ใน compose แล้ว
+
 ## Next steps (ลำดับ)
-1. เทียบ Enter/Exit กับ OSD → แก้ทิศที่กล้องถ้ากลับ
-2. ต่อกล้องขวา + รัน `videoStatProbe --gate right`
-3. เขียน Phase 4B: poll service (compose) → delta → `traffic_hourly` + occupancy ต่อ gate
-4. deploy ขึ้น server 10.0.100.46
+1. **ยืนยันทิศกับ OSD หน้างาน** → ล็อก `CAM_*_SWAP_INOUT` ให้ตรงจริง (ซ้ายตอนนี้ตั้ง swap=1)
+2. **deploy ขึ้น server 10.0.100.46** — compose เต็ม stack (postgres+backend+mediamtx+poller),
+   `MEDIAMTX_HLS_BASE=http://10.0.100.46:8888`, firewall 8888, ใส่ `.env` จริงบน server
+3. (option) retention cron `purgeOld.js`; event/AI-adapter path ยังเปิดไว้เป็น plan B

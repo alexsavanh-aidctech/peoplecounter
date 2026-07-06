@@ -150,12 +150,32 @@ docker run -d --env-file .env -p 8888:8888 -p 8554:8554 pc-mediamtx:dev
   **Phase 4B ต้อง map `Entered/Exited` → `in/out` แบบ config ต่อกล้อง** (อาจต้องสลับฝั่งซ้าย)
   ไม่ fix ที่กล้อง; ยืนยัน mapping กับ OSD ตอนทำจริง
 
+## Phase 4B — poll service (เสร็จแล้ว 2026-07-06) ✅
+
+**สถาปัตยกรรม:** device เป็น source of truth → poll แล้ว **SET** (ไม่ inc/ไม่ผ่าน event/dedup)
+- `backend/src/dahuaVideoStat.js` — RPC2 client (login MD5 challenge → factory.instance →
+  startFind/doFind/stopFind, keepAlive + re-login เมื่อ session หลุด)
+- `backend/src/poller.js` — ทุก `POLL_INTERVAL_SECONDS` (30s) ต่อกล้อง: ดึงยอดราย ชม. วันนี้ →
+  map `Entered/Exited → in/out` (สลับด้วย `CAM_*_SWAP_INOUT`) → **SET** `counting_hourly` (per hour)
+  + **SET** `occupancy_state` (Σวันนี้, occupancy = GREATEST(0, in−out), day = วันนี้)
+- `config.js` — เพิ่ม `pollIntervalSeconds` + ต่อกล้อง `ip/user/pass/channel/areaId/swapInOut`
+- `docker-compose.yml` — service `poller` (build backend image, `command: node backend/src/poller.js`, `env_file: .env`)
+- **frontend/API response shape ไม่แตะเลย** — summary/timeseries อ่านตารางเดิม
+
+**mapping ทิศ (ตั้งใน `.env`):** `CAM_LEFT_SWAP_INOUT=1` (ซ้าย probe เจอ occ ติดลบ → สลับ),
+`CAM_RIGHT_SWAP_INOUT=0` — **ยังต้องยืนยันกับ OSD หน้างานให้ชัวร์**
+
+**Verify end-to-end (กล้องจริง + Postgres):** poller → DB → API → dashboard เห็นข้อมูลจริง:
+ซ้าย in=71/out=53/occ=18, ขวา in=48/out=45/occ=3, รวม occ=21; กราฟราย ชม. เข้า/ออกขึ้นจริง
+(คนเข้าพุ่งเช้า 06:00–09:00) + กล้องสด 2 จอ — **ครบทั้งระบบ**
+
 ### รอทำต่อ
-- **เทียบ Enter/Exit กับ OSD** ต่อกล้อง เพื่อล็อก mapping in/out ให้ถูก (โดยเฉพาะซ้ายที่ occ ติดลบ)
-- **เขียน Phase 4B (poll service)** — service ใน compose: login → poll `videoStatServer` ทุก N วินาที
-  ต่อกล้อง → คิด delta ต่อ ชม. → upsert เข้า `traffic_hourly` + คำนวณ occupancy ต่อ gate
-  (ยังไม่เริ่ม — รอยืนยันทิศ + ตัดสิน design การ map ยอดสะสม → event/occupancy ของเรา)
-- ทางเลือก event `NumberStat` (Phase 4A) ยังเปิดไว้เป็น plan B (pull ชนะเพราะไม่ต้อง dedup/walk-capture)
+- **เทียบ Enter/Exit กับ OSD** ต่อกล้อง → ล็อก `CAM_*_SWAP_INOUT` ให้ตรงจริง (โดยเฉพาะซ้าย)
+- **deploy ขึ้น server 10.0.100.46** (compose เต็ม stack: postgres+backend+mediamtx+poller;
+  `MEDIAMTX_HLS_BASE=http://10.0.100.46:8888`, เปิด firewall 8888, ใส่ `.env` จริงบน server)
+- retention: ผูก cron รัน `purgeOld.js` (counting_events เก่า >30 วัน) — แม้ pull ไม่เขียน events
+  แต่เก็บ job ไว้เผื่อ event path
+- ทางเลือก event `NumberStat` (Phase 4A) / AI adapter → `/api/events` ยังเปิดไว้เป็น plan B
 
 > ทางเลือกสำรอง (ยังเปิดไว้): ถ้า AI Engine แยกต่างหากส่ง payload เอง → adapter map → `/api/events`
 > (`/api/events/crossing` ยัง stub รอ spec)

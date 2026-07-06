@@ -43,6 +43,19 @@ services:
     ports:
       - "${PORT:-4100}:${PORT:-4100}"
 
+  # ── Phase 4B — videoStatServer poller (pull People-Counting → DB) ──
+  poller:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Needs DB + camera IP/user/pass/swap — all from .env.
+    env_file: .env
+    command: ["node", "backend/src/poller.js"]
+
   # ── Phase 3 — MediaMTX: RTSP (Dahua) → HLS live view ──
   mediamtx:
     build: ./mediamtx
