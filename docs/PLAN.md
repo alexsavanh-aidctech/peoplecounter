@@ -140,9 +140,18 @@ docker run -d --env-file .env -p 8888:8888 -p 8554:8554 pc-mediamtx:dev
 - ยืนยัน invariant: ถ้ายอดถอยหลัง/ข้ามวัน ต้อง clamp (เรามี `GREATEST(0, in-out)` อยู่แล้ว);
   occupancy จากเส้นเดียว + reset เที่ยงคืน อาจ drift ถ้ามีคนค้างข้ามวัน — จดไว้เป็น known issue
 
+### ✅ กล้องขวา (AIDC) probe ผ่านแล้ว (2026-07-06)
+- `videoStatProbe --gate right --channel 0` → login ✓ → doFind 23 แถว, RuleName NumberStat
+- ยอดจริงวันนี้: **Entered=45, Exited=40 → occupancy +5** (ฝั่งซ้าย occupancy −6)
+- **สรุป: กล้อง Dahua เดี่ยวทั้ง 2 ตัว (ซ้าย/ขวา, IP อยู่ใน `.env`) ตอบ videoStatServer ได้** →
+  แนวทาง pull ยืนยันครบทั้งระบบ
+- 📌 gotcha ที่เจอ: กล้องแต่ละตัว user/pass คนละชุด (ต้องใส่แยกใน `.env`); ระวังพิมพ์ IP ซ้ำ
+- 📌 **ทิศต่างกันต่อกล้อง** (ซ้าย occ ติดลบ, ขวาบวก) — พี่เขาตั้งทิศแบบนั้นตั้งใจ →
+  **Phase 4B ต้อง map `Entered/Exited` → `in/out` แบบ config ต่อกล้อง** (อาจต้องสลับฝั่งซ้าย)
+  ไม่ fix ที่กล้อง; ยืนยัน mapping กับ OSD ตอนทำจริง
+
 ### รอทำต่อ
-- **เทียบ Enter/Exit กับ OSD** + แก้ทิศที่กล้องถ้ากลับด้าน (จุดข้างบน)
-- **ทำกล้องขวา (AIDC)** — ใส่ IP/user/pass จริงใน `.env` (`CAM_RIGHT_*`), รัน `videoStatProbe --gate right`
+- **เทียบ Enter/Exit กับ OSD** ต่อกล้อง เพื่อล็อก mapping in/out ให้ถูก (โดยเฉพาะซ้ายที่ occ ติดลบ)
 - **เขียน Phase 4B (poll service)** — service ใน compose: login → poll `videoStatServer` ทุก N วินาที
   ต่อกล้อง → คิด delta ต่อ ชม. → upsert เข้า `traffic_hourly` + คำนวณ occupancy ต่อ gate
   (ยังไม่เริ่ม — รอยืนยันทิศ + ตัดสิน design การ map ยอดสะสม → event/occupancy ของเรา)
