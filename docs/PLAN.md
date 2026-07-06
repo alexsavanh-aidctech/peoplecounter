@@ -169,8 +169,19 @@ docker run -d --env-file .env -p 8888:8888 -p 8554:8554 pc-mediamtx:dev
 ซ้าย in=71/out=53/occ=18, ขวา in=48/out=45/occ=3, รวม occ=21; กราฟราย ชม. เข้า/ออกขึ้นจริง
 (คนเข้าพุ่งเช้า 06:00–09:00) + กล้องสด 2 จอ — **ครบทั้งระบบ**
 
+### Design decision — โซน & occupancy (ยืนยัน 2026-07-06)
+- **ซ้าย/ขวา = คนละโซนแยกกัน** (AIDC Tech ≠ AIDC) → occupancy per-gate ถูกต้องแล้ว
+  (คนในแต่ละโซน = เข้า−ออก, clamp ≥0); `total` = ผลรวม 2 โซน = คนรวมทั้ง 2 บริษัท
+  → **ไม่ต้องแก้ backend** (ที่ทำไว้ถูกต้องกับ use case นี้)
+- ถ้าเป็น "อาคารเดียว 2 ประตู" ค่อยเปลี่ยน total เป็น clamp(Σin−Σout) — แต่ตอนนี้ **ไม่ใช่**
+- **ทิศ:** พี่หัวหน้าตั้งกล้อง **กลับด้านทั้ง 2 ตัวเหมือนกัน** → `CAM_LEFT_SWAP_INOUT=1`,
+  `CAM_RIGHT_SWAP_INOUT=1`. ⚠️ ขวาหลัง swap ได้ occ 0 (ไม่ swap ได้ +3) — **ต้องเทียบ OSD หน้างาน**
+  ถ้าโซน AIDC มีคนจริง → ขวากลับเป็น `swap=0`
+
 ### รอทำต่อ
-- **เทียบ Enter/Exit กับ OSD** ต่อกล้อง → ล็อก `CAM_*_SWAP_INOUT` ให้ตรงจริง (โดยเฉพาะซ้าย)
+- **เทียบ Enter/Exit กับ OSD** ต่อกล้อง → ล็อก `CAM_*_SWAP_INOUT` ให้ตรงจริง (ทั้งซ้าย+ขวา)
+- **กรอบตรวจจับบนภาพ (detection box)** — เปิด IVS rule/target display ที่กล้อง (burn ลงสตรีม);
+  ถ้าอยู่แค่ main stream → เพิ่ม option ต่อกล้องให้ MediaMTX ใช้ subtype=0
 - **deploy ขึ้น server 10.0.100.46** (compose เต็ม stack: postgres+backend+mediamtx+poller;
   `MEDIAMTX_HLS_BASE=http://10.0.100.46:8888`, เปิด firewall 8888, ใส่ `.env` จริงบน server)
 - retention: ผูก cron รัน `purgeOld.js` (counting_events เก่า >30 วัน) — แม้ pull ไม่เขียน events
