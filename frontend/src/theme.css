@@ -97,7 +97,41 @@ body {
   font-weight: 500;
   color: #c5cbdb;
 }
+/* "auto-updating" live badge with a pulsing dot */
+.badge.live { color: var(--success); }
+.live-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--success);
+  animation: livepulse 1.8s ease-out infinite;
+}
+@keyframes livepulse {
+  0% { box-shadow: 0 0 0 0 rgba(45, 212, 167, 0.5); }
+  70% { box-shadow: 0 0 0 7px rgba(45, 212, 167, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(45, 212, 167, 0); }
+}
 .header-divider { border-bottom: 1px solid var(--border); margin: 18px 0 0; }
+
+/* live-view toolbar (detection overlay toggle) */
+.live-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+.chk {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
+}
+.chk input {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.chk:hover { color: var(--text); }
 
 /* ---- Buttons ---- */
 .btn {

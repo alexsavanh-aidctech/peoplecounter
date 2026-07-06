@@ -26,6 +26,8 @@ export const L = {
 
   // camera
   cameraOffline: 'ກ້ອງບໍ່ພ້ອມ',
+  showDetect: 'ສະແດງເສ້ນ/ໂຊນກວດຈັບ',
+  liveLabel: 'ອັບເດດອັດຕະໂນມັດ',
 
   // reset
   reset: 'ຣີເຊັດ',

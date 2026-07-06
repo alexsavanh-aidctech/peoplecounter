@@ -214,7 +214,9 @@ Frontend เป็น React + Vite สร้างใหม่ทั้งหม
    - ปุ่ม reset occupancy manual (ยิง `POST /api/occupancy/reset`) — ยืนยันก่อน reset
 
 **Data fetching:**
-- **refresh ด้วยปุ่มเท่านั้น** (ไม่ auto-poll / ไม่ WebSocket) — เบา server, สอดคล้องกับ WebLog ที่ตัด WebSocket ออก
+- **auto-refresh** — frontend re-อ่าน `summary` + กราฟทุก ~5 วิ (near-real-time; poller อัปเดต DB ทุก
+  ~10 วิ) + ยังมีปุ่ม refresh manual ด้วย (เปลี่ยนจาก spec เดิม "ปุ่มเท่านั้น" ตามที่ผู้ใช้ขอ real-time);
+  ยังไม่ใช้ WebSocket (auto-poll เบากว่าและพอสำหรับ data ที่มาจาก pull)
 - โหลดครั้งแรกตอนเปิดหน้า + ทุกครั้งที่กดปุ่ม refresh
 - state: loading / error / data ครบ (หน้าไม่ค้างขาวถ้า API ล่ม — โชว์ error card)
 

@@ -5,6 +5,10 @@ import LiveGrid from './components/LiveGrid.jsx';
 import KpiCards from './components/KpiCards.jsx';
 import TrafficChart from './components/TrafficChart.jsx';
 
+// Auto-refresh cadence for the numbers (the poller updates the DB continuously;
+// this is how often the browser re-reads it). ~5s feels near-real-time.
+const AUTO_REFRESH_MS = 5000;
+
 // Format today's date in the Lao locale for the header badge.
 function todayLabel() {
   try {
@@ -24,23 +28,22 @@ export default function App() {
   const [geometryByGate, setGeometryByGate] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  // Bumped on every refresh so child charts refetch too.
+  // Bumped on every refresh so the chart refetches too.
   const [refreshKey, setRefreshKey] = useState(0);
   const [resetting, setResetting] = useState(false);
+  // Show/hide the detection overlay (line + zone). Persisted across reloads.
+  const [showDetect, setShowDetect] = useState(() => localStorage.getItem('pc-show-detect') !== '0');
 
-  // Load summary + live-config together. Manual only (mount + refresh button) —
-  // no polling, matching WebLog.
+  // Full load: summary + camera list + detection geometry. Used on mount, the
+  // manual refresh button, and after a reset. Toggles the loading state.
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [summaryRes, liveRes] = await Promise.all([
-        api.summary(),
-        api.liveConfig(),
-      ]);
+      const [summaryRes, liveRes] = await Promise.all([api.summary(), api.liveConfig()]);
       setSummary(summaryRes);
       setCameras(liveRes.cameras || []);
-      // Detection geometry is best-effort (camera RPC) — never block the dashboard on it.
+      // Detection geometry is best-effort (camera RPC) — never block on it.
       api
         .detectConfig()
         .then((res) => setGeometryByGate(Object.fromEntries((res.cameras || []).map((c) => [c.gate, c.geometry]))))
@@ -52,17 +55,41 @@ export default function App() {
     }
   }, []);
 
+  // Silent tick for auto-refresh: just re-read the numbers + nudge the chart.
+  // No spinner, and a transient failure keeps the last-good values on screen.
+  const tick = useCallback(async () => {
+    try {
+      const s = await api.summary();
+      setSummary(s);
+      setError(null);
+      setRefreshKey((k) => k + 1);
+    } catch {
+      /* keep showing the last good numbers */
+    }
+  }, []);
+
   useEffect(() => {
     load();
   }, [load]);
+
+  // Auto-refresh loop — the "real-time" updates.
+  useEffect(() => {
+    const id = setInterval(tick, AUTO_REFRESH_MS);
+    return () => clearInterval(id);
+  }, [tick]);
 
   const refresh = () => {
     setRefreshKey((k) => k + 1);
     load();
   };
 
+  const toggleDetect = (e) => {
+    const on = e.target.checked;
+    setShowDetect(on);
+    localStorage.setItem('pc-show-detect', on ? '1' : '0');
+  };
+
   const onReset = async () => {
-    // Confirm before a destructive reset (zeros the day's counts).
     if (!window.confirm(L.resetConfirm)) return;
     setResetting(true);
     try {
@@ -86,6 +113,10 @@ export default function App() {
           </div>
         </div>
         <div className="header-right">
+          <span className="badge live">
+            <span className="live-dot" />
+            {L.liveLabel}
+          </span>
           <span className="badge">{todayLabel()}</span>
           <button className="btn danger" onClick={onReset} disabled={resetting}>
             {L.reset}
@@ -97,8 +128,16 @@ export default function App() {
       </header>
       <div className="header-divider" />
 
+      {/* Live-view toolbar: toggle the detection overlay. */}
+      <div className="live-toolbar">
+        <label className="chk">
+          <input type="checkbox" checked={showDetect} onChange={toggleDetect} />
+          {L.showDetect}
+        </label>
+      </div>
+
       {/* Live view is always shown (cameras self-handle offline state). */}
-      <LiveGrid cameras={cameras} geometryByGate={geometryByGate} />
+      <LiveGrid cameras={cameras} geometryByGate={geometryByGate} showDetect={showDetect} />
 
       {error ? (
         <div className="state error">{L.error} — {error}</div>

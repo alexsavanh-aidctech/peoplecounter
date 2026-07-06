@@ -70,9 +70,9 @@ export default function TrafficChart({ refreshKey }) {
       </div>
 
       <div className="chart-body">
-        {error ? (
+        {error && data.length === 0 ? (
           <div className="state error">{error}</div>
-        ) : loading ? (
+        ) : loading && data.length === 0 ? (
           <div className="state">
             <span className="spinner" />
             {L.loading}
