@@ -57,6 +57,31 @@ async function persist(gate, rows, swap, now) {
   return { sumIn, sumOut, occupancy: Math.max(0, sumIn - sumOut) };
 }
 
+// Per-gate day totals from the previous poll, to derive "crossings since last
+// poll" (deltas). In-memory: on (re)start the first poll just baselines and logs
+// nothing, so a restart never invents a giant crossing.
+const prevTotals = new Map(); // gate -> { in, out }
+
+// Append timestamped crossing rows for whatever changed since the last poll.
+async function logCrossings(gate, sumIn, sumOut, now) {
+  const prev = prevTotals.get(gate);
+  prevTotals.set(gate, { in: sumIn, out: sumOut });
+  if (!prev) return; // first poll = baseline only
+  const dIn = sumIn - prev.in;
+  const dOut = sumOut - prev.out;
+  // A negative delta means the daily counter reset (midnight) or the swap flag
+  // changed — don't log, just let the new baseline take over.
+  const inserts = [];
+  if (dIn > 0) inserts.push([gate, 'in', dIn]);
+  if (dOut > 0) inserts.push([gate, 'out', dOut]);
+  for (const [g, dir, cnt] of inserts) {
+    await query(
+      `INSERT INTO crossing_log (ts, gate, direction, count) VALUES ($1, $2, $3, $4)`,
+      [now, g, dir, cnt],
+    );
+  }
+}
+
 // One poll for one camera. Never throws — logs and lets the loop continue so one
 // bad camera can't stop the other.
 async function pollCamera(cam, client) {
@@ -68,6 +93,7 @@ async function pollCamera(cam, client) {
     const now = new Date();
     const rows = await client.fetchTodayHourly(now);
     const { sumIn, sumOut, occupancy } = await persist(cam.gate, rows, cam.swapInOut, now);
+    await logCrossings(cam.gate, sumIn, sumOut, now);
     console.log(`[poller] ${cam.gate}: in=${sumIn} out=${sumOut} occupancy=${occupancy} (swap=${cam.swapInOut}, ${rows.length} hourly rows)`);
   } catch (err) {
     console.error(`[poller] ${cam.gate}: poll failed — ${err.message}`);

@@ -45,6 +45,11 @@ export const api = {
     return request('/detect-config');
   },
 
+  // { crossings: [ { ts, gate, direction, count } ] } — newest first
+  crossings(limit = 50) {
+    return request(`/crossings?limit=${limit}`);
+  },
+
   // gate = 'left' | 'right' | 'all'
   resetOccupancy(gate = 'all') {
     const params = new URLSearchParams({ gate });

@@ -165,6 +165,34 @@ router.get('/detect-config', async (_req, res) => {
   res.json({ cameras });
 });
 
+// Recent crossing log — one row per poll-tick per direction that had activity
+// (ts, gate, direction, count). Newest first. ?limit=N (default 50, cap 200).
+router.get('/crossings', async (req, res) => {
+  const limit = Math.min(200, Math.max(1, Number(req.query.limit) || 50));
+  const gate = req.query.gate;
+  if (gate && gate !== 'all' && !GATES.includes(gate)) {
+    return res.status(400).json({ error: `invalid gate: ${gate}` });
+  }
+  try {
+    const filtered = gate && gate !== 'all';
+    const sql = filtered
+      ? `SELECT ts, gate, direction, count FROM crossing_log WHERE gate = $1 ORDER BY ts DESC LIMIT $2`
+      : `SELECT ts, gate, direction, count FROM crossing_log ORDER BY ts DESC LIMIT $1`;
+    const { rows } = await query(sql, filtered ? [gate, limit] : [limit]);
+    res.json({
+      crossings: rows.map((r) => ({
+        ts: r.ts.toISOString(),
+        gate: r.gate,
+        direction: r.direction,
+        count: r.count,
+      })),
+    });
+  } catch (err) {
+    console.error('[crossings] error:', err.message);
+    res.status(500).json({ error: 'failed to load crossings' });
+  }
+});
+
 // Health — also pings the DB so a broken pool surfaces as unhealthy.
 router.get('/health', async (_req, res) => {
   try {

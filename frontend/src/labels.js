@@ -23,6 +23,12 @@ export const L = {
   liveTitle: 'ພາບສົດ',
   summaryTitle: 'ສະຫຼຸບ',
   chartTitle: 'ຈຳນວນເຂົ້າ-ອອກ ຕໍ່ຊົ່ວໂມງ',
+  logTitle: 'ບັນທຶກເຂົ້າ-ອອກ ຕາມเวลา',
+  colTime: 'ເວລາ',
+  colGate: 'ປະຕູ',
+  colDir: 'ທິດ',
+  colCount: 'ຈຳນວນ',
+  noData: 'ຍັງບໍ່ມີບັນທຶກ',
 
   // camera
   cameraOffline: 'ກ້ອງບໍ່ພ້ອມ',

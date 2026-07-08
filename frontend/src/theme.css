@@ -312,6 +312,43 @@ body {
 .chart-title { font-size: 15px; font-weight: 600; color: var(--heading); }
 .chart-body { width: 100%; height: 300px; margin-top: 16px; }
 
+/* ---- Crossing log table ---- */
+.table-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 18px 20px 16px;
+  margin-top: var(--gap);
+}
+.table-scroll { max-height: 360px; overflow-y: auto; margin-top: 12px; }
+.data-table { width: 100%; border-collapse: collapse; }
+.data-table th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-card);
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--text-muted);
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.data-table th.num, .data-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.data-table td {
+  font-size: 13px;
+  color: var(--text);
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.data-table tbody tr:hover { background: var(--row-hover, #161c2b); }
+.data-table td.mono { font-variant-numeric: tabular-nums; color: var(--text-muted); }
+.data-table td.empty { text-align: center; color: var(--text-muted); padding: 20px; }
+.dir { font-weight: 600; }
+.dir.in { color: var(--success); }
+.dir.out { color: var(--danger); }
+
 /* ---- States ---- */
 .state {
   display: flex; align-items: center; justify-content: center;

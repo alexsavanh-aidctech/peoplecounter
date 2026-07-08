@@ -4,6 +4,7 @@ import { L } from './labels.js';
 import LiveGrid from './components/LiveGrid.jsx';
 import KpiCards from './components/KpiCards.jsx';
 import TrafficChart from './components/TrafficChart.jsx';
+import CrossingTable from './components/CrossingTable.jsx';
 
 // Auto-refresh cadence for the numbers (the poller updates the DB continuously;
 // this is how often the browser re-reads it). ~5s feels near-real-time.
@@ -155,6 +156,9 @@ export default function App() {
 
       {/* Chart fetches its own data; refreshKey re-triggers it. */}
       <TrafficChart refreshKey={refreshKey} />
+
+      {/* Timestamped in/out log (auto-refreshes with refreshKey). */}
+      <CrossingTable refreshKey={refreshKey} />
     </div>
   );
 }
