@@ -45,6 +45,17 @@ services:
     ports:
       - "${PORT:-4100}:${PORT:-4100}"
 
+  # ── Frontend (production): built SPA served by nginx, proxies /api → backend ──
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "${WEB_PORT:-8080}:80"
+
   # ── Phase 4B — videoStatServer poller (pull People-Counting → DB) ──
   poller:
     build:

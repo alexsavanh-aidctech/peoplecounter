@@ -195,9 +195,18 @@ docker run -d --env-file .env -p 8888:8888 -p 8554:8554 pc-mediamtx:dev
 - verify: poller เติม DB จริง, summary/detect-config/live view ทำงานครบผ่าน compose
 - (frontend เป็น vite dev แยก ชี้ backend :4100 — deploy จริงค่อยเพิ่ม frontend service/บิลด์ static)
 
-### รอทำต่อ (เหลือที่ต้องพี่ช่วย)
+### Deploy-ready (2026-07-08) ✅
+- **Frontend เป็น production service แล้ว** — `frontend/Dockerfile` (Vite build → nginx) +
+  `frontend/nginx.conf` (เสิร์ฟ SPA + proxy `/api` → `backend:4102`); service `frontend` ใน compose
+  publish `${WEB_PORT:-8080}`. → `docker compose up -d --build` ขึ้นครบ 5 service เป็นเว็บเต็มระบบ
+  (ไม่ต้องรัน vite แยก) — verify แล้ว: `:8080` เสิร์ฟ + proxy API + crossings ทำงาน
+- **Runbook: `docs/DEPLOY.md`** — ขั้นตอน deploy บน server + checklist วันลองจริง + ยืนยันทิศ
+- poller resilient: ต่อกล้องไม่ได้ → log timeout แล้วไปต่อ (พอกล้องกลับมาดึงเอง)
+
+### รอทำต่อ (เหลือที่ต้องพี่ช่วย — วันลองจริง/deploy)
 - **เทียบ Enter/Exit กับ OSD หน้างาน** → ล็อก `CAM_*_SWAP_INOUT` ให้ตรงจริง (ขวายัง occ 0)
-- deploy ขึ้น server 10.0.100.46 (เมื่อพร้อม) — ตาม checklist ด้านบน
+- **deploy ขึ้น server 10.0.100.46** — ทำตาม `docs/DEPLOY.md` (ตั้ง `MEDIAMTX_HLS_BASE` = IP server,
+  เปิด firewall 8080+8888, ใส่ `.env` จริง)
 - **deploy ขึ้น server 10.0.100.46** (compose เต็ม stack: postgres+backend+mediamtx+poller;
   `MEDIAMTX_HLS_BASE=http://10.0.100.46:8888`, เปิด firewall 8888, ใส่ `.env` จริงบน server)
 - retention: ผูก cron รัน `purgeOld.js` (counting_events เก่า >30 วัน) — แม้ pull ไม่เขียน events
