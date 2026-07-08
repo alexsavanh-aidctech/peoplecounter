@@ -174,9 +174,10 @@ docker run -d --env-file .env -p 8888:8888 -p 8554:8554 pc-mediamtx:dev
   (คนในแต่ละโซน = เข้า−ออก, clamp ≥0); `total` = ผลรวม 2 โซน = คนรวมทั้ง 2 บริษัท
   → **ไม่ต้องแก้ backend** (ที่ทำไว้ถูกต้องกับ use case นี้)
 - ถ้าเป็น "อาคารเดียว 2 ประตู" ค่อยเปลี่ยน total เป็น clamp(Σin−Σout) — แต่ตอนนี้ **ไม่ใช่**
-- **ทิศ:** พี่หัวหน้าตั้งกล้อง **กลับด้านทั้ง 2 ตัวเหมือนกัน** → `CAM_LEFT_SWAP_INOUT=1`,
-  `CAM_RIGHT_SWAP_INOUT=1`. ⚠️ ขวาหลัง swap ได้ occ 0 (ไม่ swap ได้ +3) — **ต้องเทียบ OSD หน้างาน**
-  ถ้าโซน AIDC มีคนจริง → ขวากลับเป็น `swap=0`
+- **ทิศ (ยืนยันจากข้อมูลจริง 2026-07-08):** 2 กล้อง**หันคนละทาง ไม่ใช่กลับด้านเหมือนกัน**
+  → `CAM_LEFT_SWAP_INOUT=1` (ซ้าย raw occ ติดลบ), `CAM_RIGHT_SWAP_INOUT=0` (ขวา raw occ บวก)
+  หลักฐาน: ซ้าย device Entered=233/Exited=240 (swap→occ 7); ขวา device Entered=144/Exited=92
+  (no-swap→occ 52). ⚠️ ยังควรแวะดู OSD ยืนยัน label in/out หน้างานอีกครั้ง
 
 ### Detection overlay (เสร็จแล้ว 2026-07-06) ✅
 - กล้อง**ไม่ได้ burn กรอบ IVS ลงสตรีม** (เช็คแล้ว main+sub ไม่มี; ไม่มี toggle ผ่าน RPC) —
