@@ -16,7 +16,7 @@ export const L = {
   // metrics
   in: 'ເຂົ້າ',
   out: 'ອອກ',
-  occupancy: 'ຄົງເຫຼືອ',
+  occupancy: 'ຈຳນວນ',
   total: 'ລວມທັງໝົດ',
 
   // sections
