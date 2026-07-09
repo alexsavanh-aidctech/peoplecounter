@@ -17,7 +17,7 @@
 
 ## 1. โค้ด + `.env`
 ```bash
-git clone https://github.com/alexsavanh-aidctech/peoplecounter.git
+git clone https://gitlab.aidclaos.com/tech-lab/peoplecounter.git
 cd peoplecounter
 cp .env.example .env
 ```
