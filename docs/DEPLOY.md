@@ -4,9 +4,15 @@
 > Browser hits **frontend :8080** (UI + `/api` proxied to backend) and **mediamtx :8888** (HLS).
 
 ## 0. Prereqs (บน server 10.0.100.46)
-- Docker + Docker Compose
-- Server อยู่ในเครือข่ายที่ **route ไปถึงกล้อง** (`10.0.99.x`) ได้ (ping/RTSP 554/HTTP 80)
-- เปิด firewall ขาเข้า: **`8080`** (เว็บ) + **`8888`** (HLS กล้อง)
+- Docker + Docker Compose (มีอยู่แล้ว — WebLog รันบน server นี้)
+- **⚠️ ต้องเช็คก่อนสุด: server route ไปถึงกล้องได้ไหม** (คนละ subnet: server=10.0.100.x, cam=10.0.99.x)
+  ```bash
+  ping -c2 10.0.99.55 && ping -c2 10.0.99.54           # ต้องได้ทั้งคู่
+  nc -zv 10.0.99.55 80 && nc -zv 10.0.99.55 554         # HTTP+RTSP เปิด
+  ```
+  **ถ้า ping ไม่ได้ = poller จะใช้ไม่ได้บน server** → ต้องแก้ routing/VLAN ให้ server ถึง 10.0.99.x ก่อน
+- **Ports บน 10.0.100.46:** 8080 ถูก WebLog ใช้แล้ว → peoplecounter ใช้ **`WEB_PORT=8090`** (ว่าง),
+  HLS **8888** (ว่าง). เปิด firewall ขาเข้า **8090 + 8888**
 
 ## 1. โค้ด + `.env`
 ```bash
@@ -22,8 +28,8 @@ cp .env.example .env
 - **HLS base (สำคัญ):** `MEDIAMTX_HLS_BASE=http://10.0.100.46:8888`
   ← ต้องเป็น IP ที่ **browser ของผู้ใช้เข้าถึงได้** ไม่ใช่ `localhost`
 - **poll:** `POLL_INTERVAL_SECONDS=10` (หรือปรับ)
-- **ports:** `WEB_PORT=8080`, `PORT=4102` (ถ้า server มีอะไรชน 8080/4102 ค่อยเปลี่ยน;
-  ถ้าเปลี่ยน `PORT` ต้องแก้ `frontend/nginx.conf` `proxy_pass` ให้ตรงด้วย)
+- **ports (server 10.0.100.46):** `WEB_PORT=8090` (8080 = WebLog), `PORT=4102`
+  (ถ้าเปลี่ยน `PORT` ต้องแก้ `frontend/nginx.conf` `proxy_pass` ให้ตรงด้วย)
 
 ## 2. ขึ้นระบบ
 ```bash
