@@ -11,7 +11,7 @@ export const router = Router();
 // Detection geometry (counting line + zone) per camera, cached — it changes only
 // when someone re-draws the rule on the camera, so a 5-min cache is plenty.
 const geoCache = new Map(); // gate -> { at, geometry }
-const GEO_TTL_MS = 5 * 60 * 1000;
+const GEO_TTL_MS = 60 * 1000; // 60s — re-drawn camera lines show up within a minute
 
 // ── Ingest (from AI Engine) ──────────────────────────────────────────
 
