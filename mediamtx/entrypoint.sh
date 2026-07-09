@@ -20,7 +20,11 @@ rtsp: yes
 rtspAddress: :${RTSP_PORT}
 hls: yes
 hlsAddress: :${HLS_PORT}
-hlsVariant: mpegts
+# Low-Latency HLS (fMP4 + partial segments) → ~1-2s instead of ~5-10s.
+hlsVariant: lowLatency
+hlsSegmentCount: 7
+hlsSegmentDuration: 1s
+hlsPartDuration: 200ms
 hlsAllowOrigin: '*'
 paths:
 EOF
@@ -33,7 +37,7 @@ add_path() { # $1=gate $2=ip $3=user $4=pass $5=transcode
     # HEVC over HLS). ffmpeg pulls the camera and republishes to this path.
     cat >> "$CONFIG" <<EOF
   ${gate}:
-    runOnDemand: 'ffmpeg -rtsp_transport tcp -i "${src}" -c:v libx264 -preset ultrafast -tune zerolatency -profile:v baseline -pix_fmt yuv420p -g 50 -an -f rtsp -rtsp_transport tcp rtsp://localhost:${RTSP_PORT}/${gate}'
+    runOnDemand: 'ffmpeg -rtsp_transport tcp -i "${src}" -c:v libx264 -preset ultrafast -tune zerolatency -profile:v baseline -pix_fmt yuv420p -g 25 -an -f rtsp -rtsp_transport tcp rtsp://localhost:${RTSP_PORT}/${gate}'
     runOnDemandRestart: yes
     runOnDemandCloseAfter: 15s
 EOF

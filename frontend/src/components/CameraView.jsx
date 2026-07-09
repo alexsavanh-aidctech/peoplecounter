@@ -19,7 +19,14 @@ export default function CameraView({ name, hlsUrl, geometry }) {
 
     let hls;
     if (Hls.isSupported()) {
-      hls = new Hls({ liveDurationInfinity: true });
+      // Low-latency: ride close to the live edge (pairs with MediaMTX LL-HLS).
+      hls = new Hls({
+        liveDurationInfinity: true,
+        lowLatencyMode: true,
+        liveSyncDuration: 1,
+        liveMaxLatencyDuration: 5,
+        backBufferLength: 10,
+      });
       hls.loadSource(hlsUrl);
       hls.attachMedia(video);
       hls.on(Hls.Events.ERROR, (_evt, data) => {
