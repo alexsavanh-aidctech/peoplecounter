@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { L, gateName } from '../labels.js';
 
+const GATES = ['all', 'left', 'right'];
+
 // Local time "DD/MM HH:MM:SS" for a crossing timestamp.
 function fmtTime(iso) {
   const d = new Date(iso);
@@ -10,14 +12,16 @@ function fmtTime(iso) {
 }
 
 // Bottom table: timestamped in/out crossings (one row per poll-tick per
-// direction). Refetches whenever the parent bumps refreshKey (auto-refresh).
+// direction). Filter by gate; refetches on filter change and whenever the parent
+// bumps refreshKey (auto-refresh).
 export default function CrossingTable({ refreshKey }) {
   const [rows, setRows] = useState([]);
+  const [gate, setGate] = useState('all');
 
   useEffect(() => {
     let cancelled = false;
     api
-      .crossings(50)
+      .crossings(50, gate)
       .then((res) => {
         if (!cancelled) setRows(res.crossings || []);
       })
@@ -27,11 +31,24 @@ export default function CrossingTable({ refreshKey }) {
     return () => {
       cancelled = true;
     };
-  }, [refreshKey]);
+  }, [refreshKey, gate]);
 
   return (
     <div className="table-panel">
-      <div className="chart-title">{L.logTitle}</div>
+      <div className="chart-header">
+        <span className="chart-title">{L.logTitle}</span>
+        <div className="segmented range">
+          {GATES.map((g) => (
+            <button
+              key={g}
+              className={gate === g ? 'active' : ''}
+              onClick={() => setGate(g)}
+            >
+              {g === 'all' ? L.gateAll : g === 'left' ? L.gateLeft : L.gateRight}
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="table-scroll">
         <table className="data-table">
           <thead>

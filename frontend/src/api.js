@@ -46,8 +46,9 @@ export const api = {
   },
 
   // { crossings: [ { ts, gate, direction, count } ] } — newest first
-  crossings(limit = 50) {
-    return request(`/crossings?limit=${limit}`);
+  crossings(limit = 50, gate = 'all') {
+    const params = new URLSearchParams({ limit: String(limit), gate });
+    return request(`/crossings?${params.toString()}`);
   },
 
   // gate = 'left' | 'right' | 'all'
