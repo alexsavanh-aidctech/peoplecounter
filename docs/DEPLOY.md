@@ -5,12 +5,13 @@
 
 ## 0. Prereqs (บน server 10.0.100.46)
 - Docker + Docker Compose (มีอยู่แล้ว — WebLog รันบน server นี้)
-- **⚠️ ต้องเช็คก่อนสุด: server route ไปถึงกล้องได้ไหม** (คนละ subnet: server=10.0.100.x, cam=10.0.99.x)
+- **⚠️ ต้องเช็คก่อนสุด: server route ไปถึงกล้องได้ไหม** (คนละ subnet: server กับกล้องคนละวง)
   ```bash
-  ping -c2 10.0.99.55 && ping -c2 10.0.99.54           # ต้องได้ทั้งคู่
-  nc -zv 10.0.99.55 80 && nc -zv 10.0.99.55 554         # HTTP+RTSP เปิด
+  # ใส่ IP กล้องจริง (ดูจาก .env: CAM_LEFT_IP / CAM_RIGHT_IP)
+  ping -c2 <CAM_LEFT_IP> && ping -c2 <CAM_RIGHT_IP>      # ต้องได้ทั้งคู่
+  nc -zv <CAM_LEFT_IP> 80 && nc -zv <CAM_LEFT_IP> 554    # HTTP(RPC)+RTSP เปิด
   ```
-  **ถ้า ping ไม่ได้ = poller จะใช้ไม่ได้บน server** → ต้องแก้ routing/VLAN ให้ server ถึง 10.0.99.x ก่อน
+  **ถ้า ping ไม่ได้ = poller จะใช้ไม่ได้บน server** → ต้องแก้ routing/VLAN ให้ server ถึง subnet กล้องก่อน
 - **Ports บน 10.0.100.46:** 8080 ถูก WebLog ใช้แล้ว → peoplecounter ใช้ **`WEB_PORT=8090`** (ว่าง),
   HLS **8888** (ว่าง). เปิด firewall ขาเข้า **8090 + 8888**
 
