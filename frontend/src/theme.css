@@ -291,6 +291,21 @@ body {
 .kpi-split.in .n { color: var(--success); }
 .kpi-split.out .n { color: var(--danger); }
 
+/* IN / OUT as the primary big numbers (occupancy hidden) */
+.kpi-inout { display: flex; align-items: center; gap: 18px; margin-top: 14px; }
+.kpi-io { flex: 1; text-align: center; }
+.kpi-io-num {
+  font-family: 'Inter', sans-serif;
+  font-size: var(--fs-kpi);
+  font-weight: 700;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+.kpi-io.in .kpi-io-num { color: var(--success); }
+.kpi-io.out .kpi-io-num { color: var(--danger); }
+.kpi-io-label { margin-top: 4px; font-size: 13px; font-weight: 500; color: var(--text-muted); }
+.kpi-io-divider { width: 1px; align-self: stretch; background: var(--border); }
+
 /* card headers shared by gate cards */
 .card-gate-name { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted2); }
 

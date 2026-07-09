@@ -1,20 +1,21 @@
 import { L, gateName } from '../labels.js';
 
-// One card: gate name, big occupancy number, and in/out splits below.
-// "in" is tinted --success, "out" is tinted --danger (per spec).
+// One card: gate name + big IN / OUT numbers side by side (occupancy hidden).
+// "in" is --success, "out" is --danger.
 function Card({ title, data, isTotal = false }) {
   return (
     <div className={`kpi-card${isTotal ? ' total' : ''}`}>
       <div className="card-gate-name">{title}</div>
-      <div className="kpi-value">{data.occupancy}</div>
-      <div className="kpi-label">{L.occupancy}</div>
-      <div className="kpi-splits">
-        <span className="kpi-split in">
-          {L.in} <span className="n">{data.in}</span>
-        </span>
-        <span className="kpi-split out">
-          {L.out} <span className="n">{data.out}</span>
-        </span>
+      <div className="kpi-inout">
+        <div className="kpi-io in">
+          <div className="kpi-io-num">{data.in}</div>
+          <div className="kpi-io-label">{L.in}</div>
+        </div>
+        <div className="kpi-io-divider" />
+        <div className="kpi-io out">
+          <div className="kpi-io-num">{data.out}</div>
+          <div className="kpi-io-label">{L.out}</div>
+        </div>
       </div>
     </div>
   );
