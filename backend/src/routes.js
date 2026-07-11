@@ -5,8 +5,47 @@ import { config, GATES } from './config.js';
 import { query } from './db.js';
 import { recordEvent, resetOccupancy, businessDay } from './ingest.js';
 import { VideoStatClient } from './dahuaVideoStat.js';
+import { signToken, checkPassword, verifyToken, readCookie, STREAM_COOKIE } from './auth.js';
 
 export const router = Router();
+
+// ── Auth (public — NOT behind requireAuth; see server.js allowlist) ─────
+
+// Shared-password login. Correct password → { token }; also drops the token as
+// a cookie so the HLS stream (which can't carry a Bearer header) authenticates.
+router.post('/login', (req, res) => {
+  const { password } = req.body || {};
+  if (!checkPassword(password)) {
+    return res.status(401).json({ error: 'wrong password' });
+  }
+  const token = signToken();
+  // Secure only when the request actually arrived over HTTPS (prod behind the
+  // proxy sets X-Forwarded-Proto) so a plain-HTTP LAN/compose run still works.
+  const isHttps = req.secure || req.headers['x-forwarded-proto'] === 'https';
+  res.cookie(STREAM_COOKIE, token, {
+    httpOnly: true,
+    secure: isHttps,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: config.authTokenDays * 24 * 60 * 60 * 1000,
+  });
+  return res.json({ token });
+});
+
+// Clears the stream cookie. Public so it works even with an expired token.
+router.post('/logout', (_req, res) => {
+  res.clearCookie(STREAM_COOKIE, { path: '/' });
+  return res.json({ ok: true });
+});
+
+// nginx auth_request target for /hls/. Reads the token from the cookie (segment
+// requests have no Authorization header) and answers 2xx allow / 401 deny.
+// Stateless jwt.verify only — no DB — so it stays cheap per HLS segment.
+router.get('/verify-stream', (req, res) => {
+  const token = readCookie(req, STREAM_COOKIE);
+  if (!verifyToken(token)) return res.status(401).end();
+  return res.status(204).end();
+});
 
 // Detection geometry (counting line + zone) per camera, cached — it changes only
 // when someone re-draws the rule on the camera, so a 5-min cache is plenty.

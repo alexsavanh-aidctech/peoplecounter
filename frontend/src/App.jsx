@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api } from './api.js';
+import { api, getToken, setToken, setOnUnauthorized } from './api.js';
 import { L } from './labels.js';
 import LiveGrid from './components/LiveGrid.jsx';
 import KpiCards from './components/KpiCards.jsx';
 import TrafficChart from './components/TrafficChart.jsx';
 import CrossingTable from './components/CrossingTable.jsx';
+import LoginPage from './components/LoginPage.jsx';
 
 // Auto-refresh cadence for the numbers (the poller updates the DB continuously;
 // this is how often the browser re-reads it). ~5s feels near-real-time.
@@ -23,7 +24,7 @@ function todayLabel() {
   }
 }
 
-export default function App() {
+function Dashboard({ onLogout }) {
   const [summary, setSummary] = useState(null);
   const [cameras, setCameras] = useState([]);
   const [geometryByGate, setGeometryByGate] = useState({});
@@ -125,6 +126,9 @@ export default function App() {
           <button className="btn primary" onClick={refresh} disabled={loading}>
             {L.refresh}
           </button>
+          <button className="btn" onClick={onLogout} title={L.logout}>
+            {L.logout}
+          </button>
         </div>
       </header>
       <div className="header-divider" />
@@ -161,4 +165,30 @@ export default function App() {
       <CrossingTable refreshKey={refreshKey} />
     </div>
   );
+}
+
+// ---- Auth gate: no token → login screen; token → dashboard ----
+// Thin wrapper so the Dashboard's hooks stay stable across login/logout.
+export default function App() {
+  const [authToken, setAuthToken] = useState(() => getToken());
+
+  useEffect(() => {
+    // A 401 from any API call (expired/invalid token) bounces back to login.
+    setOnUnauthorized(() => setAuthToken(null));
+  }, []);
+
+  const handleLogin = async (password) => {
+    const { token } = await api.login(password);
+    setToken(token);
+    setAuthToken(token);
+  };
+
+  const handleLogout = async () => {
+    await api.logout();
+    setToken(null);
+    setAuthToken(null);
+  };
+
+  if (!authToken) return <LoginPage onLogin={handleLogin} />;
+  return <Dashboard onLogout={handleLogout} />;
 }

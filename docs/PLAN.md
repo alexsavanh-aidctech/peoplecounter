@@ -216,6 +216,35 @@ docker run -d --env-file .env -p 8888:8888 -p 8554:8554 pc-mediamtx:dev
 > ทางเลือกสำรอง (ยังเปิดไว้): ถ้า AI Engine แยกต่างหากส่ง payload เอง → adapter map → `/api/events`
 > (`/api/events/crossing` ยัง stub รอ spec)
 
+## Phase 5 — Auth (shared-password JWT) — เสร็จแล้ว ✅
+
+> กันคนนอกเข้าดู dashboard + กล้องสด. รหัสเดียวทั้งทีม (ไม่มี multi-user) — ลอก pattern จาก WebLog.
+> **หลักการ: กันที่ API + HLS ไม่ใช่แค่ซ่อน UI** (ล็อกครบ 3 ชั้น)
+
+- **Backend** — `backend/src/auth.js` (`signToken`/`verifyToken`/`requireAuth`/`checkPassword` +
+  `readCookie` no-dep). `config.js` เพิ่ม `authPassword`/`authSecret`/`authTokenDays` (จาก `.env`,
+  fail closed ถ้าว่าง). `routes.js`: `POST /login` (คืน `{token}` + เซ็ต cookie `pc_token`),
+  `POST /logout`, `GET /verify-stream` (auth_request target — เช็ค cookie, jwt.verify ล้วน ไม่แตะ DB).
+  `server.js`: gate `/api` ทั้งหมดยกเว้น allowlist `{login, logout, health, verify-stream}` +
+  `trust proxy` (ให้ secure-cookie ตาม X-Forwarded-Proto). dep ใหม่ = `jsonwebtoken`
+- **Frontend** — `api.js` refactor: เก็บ token (localStorage `pc_token`), แนบ `Bearer` ทุก call,
+  401 → เคลียร์ + เด้ง login; เพิ่ม `api.login/logout`. `LoginPage.jsx` (ลาว ธีม dark) +
+  login labels ใน `labels.js` + CSS ใน `theme.css`. `App.jsx` = auth gate (ไม่มี token → LoginPage) +
+  ปุ่ม logout ที่ header. **response shape เดิมทุก endpoint ไม่แตะ**
+- **HLS (ชั้นสำคัญสุด)** — `frontend/nginx.conf` `/hls/` เพิ่ม `auth_request /_hls_auth` →
+  subrequest ไป `backend:4102/api/verify-stream` (อ่าน cookie `pc_token`) → 204 allow / 401 deny.
+  ไม่ล็อกอิน = ยิง `/hls/left/index.m3u8` ตรง ก็ได้ 401 (ดูกล้องไม่ได้). cookie ส่งอัตโนมัติ
+  (same-origin) → **CameraView/hls.js ไม่ต้องแก้**, native Safari ก็ทำงาน
+- **`.env.example` + `docs/DEPLOY.md §7`** — อธิบาย `AUTH_PASSWORD`/`JWT_SECRET` (gen `openssl rand -hex 32`) +
+  วิธี apply (`--force-recreate backend` / `--build frontend`) + verify curl ครบ 3 ชั้น
+- **decisions:** `/api/events*` ล็อกด้วย JWT ด้วย (ปัจจุบัน dormant — poller เขียน DB ตรง; ถ้า AI Engine
+  ต่อ path นี้ทีหลังค่อยออก service token/ingest key). `/api/health` public เสมอ (docker healthcheck).
+  poller = internal ต่อ DB ตรง ไม่ต้อง token
+
+**Verify (dev, ไม่มี DB):** smoke test 10 เคสผ่านครบ — login ผิด/ถูก+cookie, gate 401/200, events ล็อก,
+health public, verify-stream (no/valid/bad cookie → 401/204/401). frontend `npm run build` ผ่าน (839 modules).
+⏳ **ยังไม่ได้ verify บน server จริง** (ต้องตั้ง `.env` + `--force-recreate backend` + `--build frontend` แล้วลอง login + กล้องสดผ่าน HTTPS)
+
 ## จุดที่ต้องเช็คกับของจริง (อย่าเดา)
 
 - **AI payload spec** — ยังไม่รู้หน้าตา payload จริง; `/api/events` รับ shape มาตรฐานไปก่อน,

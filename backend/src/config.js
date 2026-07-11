@@ -45,6 +45,13 @@ export const config = {
   occupancyResetHour: num(process.env.OCCUPANCY_RESET_HOUR, 0),
   // How often the poller pulls videoStatServer counts (seconds).
   pollIntervalSeconds: num(process.env.POLL_INTERVAL_SECONDS, 30),
+  // ── Auth (shared password → JWT) ──
+  // One shared password guards the whole dashboard + HLS stream. Both values
+  // come from .env only (never hardcoded). Empty authPassword/authSecret means
+  // auth is misconfigured → login rejects everything (fail closed, never open).
+  authPassword: process.env.AUTH_PASSWORD || '',
+  authSecret: process.env.JWT_SECRET || '',
+  authTokenDays: num(process.env.AUTH_TOKEN_DAYS, 7),
   cameras,
 };
 

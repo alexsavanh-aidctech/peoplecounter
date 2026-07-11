@@ -42,6 +42,16 @@ export const L = {
   // states
   loading: 'ກຳລັງໂຫຼດ...',
   error: 'ໂຫຼດຂໍ້ມູນບໍ່ສຳເລັດ',
+
+  // auth
+  loginTitle: 'ນັບຄົນເຂົ້າ-ອອກ',
+  loginSubtitle: 'People Counter Dashboard',
+  loginPlaceholder: 'ໃສ່ລະຫັດຜ່ານ',
+  loginButton: 'ເຂົ້າສູ່ລະບົບ',
+  loginBusy: 'ກຳລັງເຂົ້າ…',
+  loginWrongPassword: 'ລະຫັດຜ່ານບໍ່ຖືກຕ້ອງ',
+  loginFailed: 'ເຂົ້າສູ່ລະບົບບໍ່ໄດ້ ລອງໃໝ່',
+  logout: 'ອອກຈາກລະບົບ',
 };
 
 // Gate display name from its key.
