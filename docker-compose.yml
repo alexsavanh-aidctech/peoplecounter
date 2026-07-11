@@ -35,8 +35,9 @@ services:
       OCCUPANCY_RESET_HOUR: ${OCCUPANCY_RESET_HOUR:-0}
       # Inside the compose network the DB host is the service name `postgres`.
       DATABASE_URL: postgres://${POSTGRES_USER:-people}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-peoplecounter}
-      # HLS base must be reachable by the BROWSER (host-facing), so it comes from
-      # .env: http://localhost:8888 on dev, http://10.0.100.46:8888 on server.
+      # HLS base must be reachable by the BROWSER, so it comes from .env:
+      #   dev  http://localhost:8888 · LAN http://10.0.100.46:8888
+      #   prod https://<domain>/hls  (via nginx /hls/ → mediamtx:8888; see DEPLOY.md §6)
       MEDIAMTX_HLS_BASE: ${MEDIAMTX_HLS_BASE:-http://localhost:8888}
       CAM_LEFT_NAME: ${CAM_LEFT_NAME:-AIDC Tech}
       CAM_RIGHT_NAME: ${CAM_RIGHT_NAME:-AIDC}
