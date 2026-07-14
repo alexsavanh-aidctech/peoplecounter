@@ -264,6 +264,69 @@ body {
   color: var(--heading);
   margin: 26px 0 2px;
 }
+.kpi-note {
+  display: block;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-muted2);
+  margin-top: 3px;
+}
+
+/* ---- Filter bar (date range + gate) ---- */
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px 22px;
+  margin: 22px 0 6px;
+}
+.filter-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.filter-label { font-size: 13px; color: var(--text-muted); }
+.custom-range {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.date-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.date-input {
+  background: var(--bg-card-alt);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-input);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  padding: 6px 9px;
+  color-scheme: dark; /* dark native date picker */
+}
+.date-input:focus { outline: none; border-color: var(--accent); }
+.filter-error {
+  flex-basis: 100%;
+  font-size: 13px;
+  color: var(--danger);
+}
+
+/* Muted pill on chart/table headers showing the current scope. */
+.scope-badge {
+  font-size: 12px;
+  color: var(--text-muted2);
+  background: var(--bg-card-alt);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 10px;
+  white-space: nowrap;
+}
 .kpi-row {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

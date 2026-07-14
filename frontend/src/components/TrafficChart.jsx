@@ -9,31 +9,42 @@ import {
   Tooltip,
   Legend,
 } from 'recharts';
-import { api, todayRange } from '../api.js';
+import { api } from '../api.js';
 import { colors } from '../theme.js';
 import { L } from '../labels.js';
 
-const GATES = ['all', 'left', 'right'];
+// More than ~1.5 days in the window → label the x-axis by date, not hour.
+const MULTIDAY_MS = 36 * 60 * 60 * 1000;
 
-// Format an ISO hour bucket to local "HH:00" for the x-axis.
+// Format an ISO hour bucket to local "HH:00" (single-day view).
 function hourTick(iso) {
   const d = new Date(iso);
   return `${String(d.getHours()).padStart(2, '0')}:00`;
 }
+// Format an ISO hour bucket to local "D/M" (multi-day view).
+function dateTick(iso) {
+  const d = new Date(iso);
+  return `${d.getDate()}/${d.getMonth() + 1}`;
+}
 
-// Hourly in-vs-out line chart with a gate filter. Refetches on gate change and
-// whenever the parent bumps `refreshKey` (the header refresh button).
-export default function TrafficChart({ refreshKey }) {
-  const [gate, setGate] = useState('all');
+// Hourly in-vs-out line chart. The date range + gate are page-level (owned by
+// App via FilterBar) and arrive as props; the chart just fetches + renders and
+// refetches whenever they (or refreshKey) change.
+export default function TrafficChart({ from, to, gate = 'all', refreshKey, rangeLabel }) {
   const [series, setSeries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    // No valid window (e.g. an incomplete custom range) → clear + skip fetch.
+    if (!from || !to) {
+      setSeries([]);
+      setLoading(false);
+      return undefined;
+    }
     let cancelled = false;
     setLoading(true);
     setError(null);
-    const { from, to } = todayRange();
     api
       .timeseries(from, to, gate)
       .then((res) => {
@@ -48,25 +59,17 @@ export default function TrafficChart({ refreshKey }) {
     return () => {
       cancelled = true;
     };
-  }, [gate, refreshKey]);
+  }, [from, to, gate, refreshKey]);
 
-  const data = series.map((p) => ({ hour: hourTick(p.t), in: p.in, out: p.out }));
+  const multiDay = from && to && new Date(to) - new Date(from) > MULTIDAY_MS;
+  const tickFmt = multiDay ? dateTick : hourTick;
+  const data = series.map((p) => ({ t: p.t, in: p.in, out: p.out }));
 
   return (
     <div className="chart-card">
       <div className="chart-header">
         <span className="chart-title">{L.chartTitle}</span>
-        <div className="segmented range">
-          {GATES.map((g) => (
-            <button
-              key={g}
-              className={gate === g ? 'active' : ''}
-              onClick={() => setGate(g)}
-            >
-              {g === 'all' ? L.gateAll : g === 'left' ? L.gateLeft : L.gateRight}
-            </button>
-          ))}
-        </div>
+        {rangeLabel && <span className="scope-badge">{rangeLabel}</span>}
       </div>
 
       <div className="chart-body">
@@ -82,7 +85,10 @@ export default function TrafficChart({ refreshKey }) {
             <LineChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: -8 }}>
               <CartesianGrid stroke={colors.grid} vertical={false} />
               <XAxis
-                dataKey="hour"
+                dataKey="t"
+                tickFormatter={tickFmt}
+                interval="preserveStartEnd"
+                minTickGap={multiDay ? 24 : 16}
                 stroke={colors.axis}
                 tick={{ fontSize: 12 }}
                 tickLine={false}
@@ -95,6 +101,7 @@ export default function TrafficChart({ refreshKey }) {
                 width={40}
               />
               <Tooltip
+                labelFormatter={(t) => (multiDay ? `${dateTick(t)} ${hourTick(t)}` : hourTick(t))}
                 contentStyle={{
                   background: colors.tooltipBg,
                   border: `1px solid ${colors.tooltipBorder}`,

@@ -22,6 +22,21 @@ export const L = {
   // sections
   liveTitle: 'ພາບສົດ',
   summaryTitle: 'ສະຫຼຸບ',
+
+  // filter (date range + gate)
+  filterRange: 'ຊ່ວງເວລາ',
+  rangeToday: 'ມື້ນີ້',
+  range7d: '7 ວັນ',
+  range30d: '30 ວັນ',
+  rangeCustom: 'ກຳນົດເອງ',
+  rangeFrom: 'ຈາກ',
+  rangeTo: 'ຫາ',
+  rangeInvalid: 'ຊ່ວງວັນທີບໍ່ຖືກຕ້ອງ (ຈາກ ຕ້ອງ ≤ ຫາ)',
+  rangeTooWide: 'ຊ່ວງກວ້າງເກີນ 90 ວັນ ກະລຸນາເລືອກແຄບລົງ',
+  filterGate: 'ປະຕູ',
+  // KPI clarity: numbers are today-only regardless of the selected range.
+  kpiTodayNote: 'ຕົວເລກມື້ນີ້ · ບໍ່ປ່ຽນຕາມຊ່ວງທີ່ເລືອກ',
+  tableRecent: 'ລ່າສຸດ 50',
   chartTitle: 'ຈຳນວນເຂົ້າ-ອອກ ຕໍ່ຊົ່ວໂມງ',
   logTitle: 'ບັນທຶກເຂົ້າ-ອອກ ຕາມเวลา',
   colTime: 'ເວລາ',

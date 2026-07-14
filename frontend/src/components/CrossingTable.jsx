@@ -2,8 +2,6 @@ import { useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { L, gateName } from '../labels.js';
 
-const GATES = ['all', 'left', 'right'];
-
 // Local time "DD/MM HH:MM:SS" for a crossing timestamp.
 function fmtTime(iso) {
   const d = new Date(iso);
@@ -12,11 +10,11 @@ function fmtTime(iso) {
 }
 
 // Bottom table: timestamped in/out crossings (one row per poll-tick per
-// direction). Filter by gate; refetches on filter change and whenever the parent
-// bumps refreshKey (auto-refresh).
-export default function CrossingTable({ refreshKey }) {
+// direction). Gate comes from the page-level FilterBar (prop). This table is
+// ALWAYS the most-recent 50 rows — the backend /api/crossings has no date range,
+// only limit+gate, so the page date range does NOT apply here (labeled clearly).
+export default function CrossingTable({ gate = 'all', refreshKey }) {
   const [rows, setRows] = useState([]);
-  const [gate, setGate] = useState('all');
 
   useEffect(() => {
     let cancelled = false;
@@ -37,17 +35,7 @@ export default function CrossingTable({ refreshKey }) {
     <div className="table-panel">
       <div className="chart-header">
         <span className="chart-title">{L.logTitle}</span>
-        <div className="segmented range">
-          {GATES.map((g) => (
-            <button
-              key={g}
-              className={gate === g ? 'active' : ''}
-              onClick={() => setGate(g)}
-            >
-              {g === 'all' ? L.gateAll : g === 'left' ? L.gateLeft : L.gateRight}
-            </button>
-          ))}
-        </div>
+        <span className="scope-badge">{L.tableRecent}</span>
       </div>
       <div className="table-scroll">
         <table className="data-table">

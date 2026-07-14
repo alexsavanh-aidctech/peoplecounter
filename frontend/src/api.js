@@ -119,3 +119,38 @@ export function todayRange() {
   const to = new Date();
   return { from: from.toISOString(), to: to.toISOString() };
 }
+
+// Local midnight of a date (new object, doesn't mutate the input).
+function midnight(d) {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+
+// Preset [from, to) window — 'today' | '7d' | '30d'. n calendar days INCLUDING
+// today, from local midnight of the first day to now. Same local-midnight basis
+// as todayRange() so timezone behavior stays consistent across presets.
+export function presetRange(preset) {
+  const days = preset === '7d' ? 7 : preset === '30d' ? 30 : 1;
+  const from = midnight(new Date());
+  from.setDate(from.getDate() - (days - 1));
+  return { from: from.toISOString(), to: new Date().toISOString() };
+}
+
+// Custom [from, to) from two yyyy-mm-dd strings (from <input type="date">).
+// from = local midnight of fromStr; to = local midnight of (toStr + 1 day) so the
+// whole to-day is included ([from, to) is half-open). Returns null when the range
+// is unusable: empty, unparseable, from after to, or wider than the 90-day cap.
+export function customRange(fromStr, toStr) {
+  if (!fromStr || !toStr) return null;
+  // `${str}T00:00:00` (no trailing Z) parses as LOCAL time — local midnight.
+  const from = midnight(new Date(`${fromStr}T00:00:00`));
+  const toBase = midnight(new Date(`${toStr}T00:00:00`));
+  if (Number.isNaN(from.getTime()) || Number.isNaN(toBase.getTime())) return null;
+  if (from > toBase) return null; // from must be <= to (same day allowed)
+  const spanDays = Math.round((toBase - from) / 86400000) + 1; // inclusive of both days
+  if (spanDays > 90) return null; // cap: wide ranges make the hourly query slow
+  const to = new Date(toBase);
+  to.setDate(to.getDate() + 1); // include the full to-day
+  return { from: from.toISOString(), to: to.toISOString() };
+}

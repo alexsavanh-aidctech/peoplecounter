@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
-import { api, getToken, setToken, setOnUnauthorized } from './api.js';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { api, getToken, setToken, setOnUnauthorized, presetRange, customRange } from './api.js';
 import { L } from './labels.js';
 import LiveGrid from './components/LiveGrid.jsx';
 import KpiCards from './components/KpiCards.jsx';
 import TrafficChart from './components/TrafficChart.jsx';
 import CrossingTable from './components/CrossingTable.jsx';
+import FilterBar from './components/FilterBar.jsx';
 import LoginPage from './components/LoginPage.jsx';
 
 // Auto-refresh cadence for the numbers (the poller updates the DB continuously;
@@ -38,6 +39,36 @@ function Dashboard({ onLogout }) {
   // Live view on/off. Default OFF — HLS is on-demand, so not loading it on first
   // open saves camera bandwidth until the user actually wants to watch.
   const [showCameras, setShowCameras] = useState(() => localStorage.getItem('pc-show-cameras') === '1');
+
+  // Page-level analytics filter (drives the chart + the table's gate). The KPI
+  // cards are intentionally NOT driven by this — they stay today-only.
+  const [rangePreset, setRangePreset] = useState('today'); // today | 7d | 30d | custom
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo, setCustomTo] = useState('');
+  const [gate, setGate] = useState('all'); // all | left | right
+
+  // Resolve the preset/custom selection into an effective { from, to } window,
+  // plus a validation error (custom only) and a short scope label for the chart.
+  const { range, rangeError, rangeLabel } = useMemo(() => {
+    if (rangePreset === 'custom') {
+      const r = customRange(customFrom, customTo);
+      if (!r) {
+        // Distinguish: not-filled-in (no error) vs from>to vs too-wide (>90d).
+        let err = null;
+        if (customFrom && customTo) {
+          const f = new Date(`${customFrom}T00:00:00`);
+          const t = new Date(`${customTo}T00:00:00`);
+          const valid = !Number.isNaN(f.getTime()) && !Number.isNaN(t.getTime());
+          err = valid && f <= t ? L.rangeTooWide : L.rangeInvalid;
+        }
+        return { range: null, rangeError: err, rangeLabel: L.rangeCustom };
+      }
+      return { range: r, rangeError: null, rangeLabel: `${customFrom} → ${customTo}` };
+    }
+    const label = rangePreset === '7d' ? L.range7d : rangePreset === '30d' ? L.range30d : L.rangeToday;
+    return { range: presetRange(rangePreset), rangeError: null, rangeLabel: label };
+    // refreshKey re-derives `to: now` on manual refresh so the window tracks time.
+  }, [rangePreset, customFrom, customTo, refreshKey]);
 
   // Full load: summary + camera list + detection geometry. Used on mount, the
   // manual refresh button, and after a reset. Toggles the loading state.
@@ -180,16 +211,40 @@ function Dashboard({ onLogout }) {
         </div>
       ) : (
         <>
-          <div className="kpi-section-title">{L.summaryTitle}</div>
+          {/* KPI = today only (backend /api/summary has no range). Labeled so the
+              date range below reads as "analytics scope", not a whole-page filter. */}
+          <div className="kpi-section-title">
+            {L.summaryTitle} · {L.rangeToday}
+            <span className="kpi-note">{L.kpiTodayNote}</span>
+          </div>
           <KpiCards summary={summary} />
         </>
       )}
 
-      {/* Chart fetches its own data; refreshKey re-triggers it. */}
-      <TrafficChart refreshKey={refreshKey} />
+      {/* Page-level filter — drives the chart (range + gate) and the table (gate). */}
+      <FilterBar
+        rangePreset={rangePreset}
+        onRangePreset={setRangePreset}
+        customFrom={customFrom}
+        customTo={customTo}
+        onCustomFrom={setCustomFrom}
+        onCustomTo={setCustomTo}
+        gate={gate}
+        onGate={setGate}
+        rangeError={rangeError}
+      />
 
-      {/* Timestamped in/out log (auto-refreshes with refreshKey). */}
-      <CrossingTable refreshKey={refreshKey} />
+      {/* Chart follows the selected range + gate. */}
+      <TrafficChart
+        from={range?.from}
+        to={range?.to}
+        gate={gate}
+        rangeLabel={rangeLabel}
+        refreshKey={refreshKey}
+      />
+
+      {/* Recent crossings — gate follows the page filter; always latest 50. */}
+      <CrossingTable gate={gate} refreshKey={refreshKey} />
     </div>
   );
 }
