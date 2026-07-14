@@ -114,6 +114,8 @@ body {
 .live-toolbar {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
+  gap: 14px;
   margin-top: 16px;
 }
 .chk {
@@ -132,6 +134,8 @@ body {
   cursor: pointer;
 }
 .chk:hover { color: var(--text); }
+.chk.disabled { opacity: 0.4; cursor: not-allowed; }
+.chk.disabled input { cursor: not-allowed; }
 
 /* ---- Buttons ---- */
 .btn {

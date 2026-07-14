@@ -4,12 +4,15 @@ import { L } from '../labels.js';
 
 // One camera tile. Plays an HLS stream; on any failure (no URL yet, network,
 // decode) it falls back to an "offline" placeholder so a dead camera never
-// takes down the page.
-export default function CameraView({ name, hlsUrl, geometry }) {
+// takes down the page. When `enabled` is false the stream is never loaded (no
+// network at all) — HLS is on-demand, so an off camera costs zero bandwidth.
+export default function CameraView({ name, hlsUrl, geometry, enabled = true }) {
   const videoRef = useRef(null);
   const [offline, setOffline] = useState(!hlsUrl);
 
   useEffect(() => {
+    // Camera off (bandwidth saver): don't touch the network / start the stream.
+    if (!enabled) return undefined;
     const video = videoRef.current;
     if (!hlsUrl || !video) {
       setOffline(true);
@@ -50,7 +53,7 @@ export default function CameraView({ name, hlsUrl, geometry }) {
         video.load();
       }
     };
-  }, [hlsUrl]);
+  }, [hlsUrl, enabled]);
 
   return (
     <div className="camera">
@@ -58,7 +61,12 @@ export default function CameraView({ name, hlsUrl, geometry }) {
         <span className="dot" />
         {name}
       </span>
-      {offline ? (
+      {!enabled ? (
+        <div className="camera-offline">
+          <span className="glyph">⏸</span>
+          {L.cameraPaused}
+        </div>
+      ) : offline ? (
         <div className="camera-offline">
           <span className="glyph">📷</span>
           {L.cameraOffline}

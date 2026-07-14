@@ -32,8 +32,11 @@ export const L = {
 
   // camera
   cameraOffline: 'ກ້ອງບໍ່ພ້ອມ',
+  cameraPaused: 'ກ້ອງປິດຢູ່',
   showDetect: 'ສະແດງເສ້ນ/ໂຊນກວດຈັບ',
   liveLabel: 'ອັບເດດອັດຕະໂນມັດ',
+  liveOn: 'ເປີດພາບສົດ', // action: turn cameras on
+  liveOff: 'ປິດພາບສົດ', // action: turn cameras off
 
   // reset
   reset: 'ຣີເຊັດ',

@@ -5,7 +5,7 @@ import { gateName } from '../labels.js';
 // Renders whatever cameras liveConfig() returned; keeps gate order left→right.
 const GATE_ORDER = { left: 0, right: 1 };
 
-export default function LiveGrid({ cameras = [], geometryByGate = {}, showDetect = true }) {
+export default function LiveGrid({ cameras = [], geometryByGate = {}, showDetect = true, enabled = true }) {
   const ordered = [...cameras].sort(
     (a, b) => (GATE_ORDER[a.gate] ?? 9) - (GATE_ORDER[b.gate] ?? 9),
   );
@@ -18,6 +18,7 @@ export default function LiveGrid({ cameras = [], geometryByGate = {}, showDetect
           name={cam.name || gateName(cam.gate)}
           hlsUrl={cam.hlsUrl}
           geometry={showDetect ? geometryByGate[cam.gate] : null}
+          enabled={enabled}
         />
       ))}
     </div>

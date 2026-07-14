@@ -35,6 +35,9 @@ function Dashboard({ onLogout }) {
   const [resetting, setResetting] = useState(false);
   // Show/hide the detection overlay (line + zone). Persisted across reloads.
   const [showDetect, setShowDetect] = useState(() => localStorage.getItem('pc-show-detect') !== '0');
+  // Live view on/off. Default OFF — HLS is on-demand, so not loading it on first
+  // open saves camera bandwidth until the user actually wants to watch.
+  const [showCameras, setShowCameras] = useState(() => localStorage.getItem('pc-show-cameras') === '1');
 
   // Full load: summary + camera list + detection geometry. Used on mount, the
   // manual refresh button, and after a reset. Toggles the loading state.
@@ -91,6 +94,14 @@ function Dashboard({ onLogout }) {
     localStorage.setItem('pc-show-detect', on ? '1' : '0');
   };
 
+  const toggleCameras = () => {
+    setShowCameras((on) => {
+      const next = !on;
+      localStorage.setItem('pc-show-cameras', next ? '1' : '0');
+      return next;
+    });
+  };
+
   const onReset = async () => {
     if (!window.confirm(L.resetConfirm)) return;
     setResetting(true);
@@ -133,16 +144,32 @@ function Dashboard({ onLogout }) {
       </header>
       <div className="header-divider" />
 
-      {/* Live-view toolbar: toggle the detection overlay. */}
+      {/* Live-view toolbar: turn the cameras on/off (bandwidth) + overlay toggle. */}
       <div className="live-toolbar">
-        <label className="chk">
-          <input type="checkbox" checked={showDetect} onChange={toggleDetect} />
+        <button
+          className={showCameras ? 'btn' : 'btn primary'}
+          onClick={toggleCameras}
+        >
+          {showCameras ? `⏸ ${L.liveOff}` : `▶ ${L.liveOn}`}
+        </button>
+        <label className={showCameras ? 'chk' : 'chk disabled'}>
+          <input
+            type="checkbox"
+            checked={showDetect}
+            onChange={toggleDetect}
+            disabled={!showCameras}
+          />
           {L.showDetect}
         </label>
       </div>
 
-      {/* Live view is always shown (cameras self-handle offline state). */}
-      <LiveGrid cameras={cameras} geometryByGate={geometryByGate} showDetect={showDetect} />
+      {/* Cameras load only when enabled (off by default to save bandwidth). */}
+      <LiveGrid
+        cameras={cameras}
+        geometryByGate={geometryByGate}
+        showDetect={showDetect}
+        enabled={showCameras}
+      />
 
       {error ? (
         <div className="state error">{L.error} — {error}</div>
