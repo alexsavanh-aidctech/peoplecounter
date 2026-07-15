@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api, getToken, setToken, setOnUnauthorized, presetRange, customRange } from './api.js';
 import { L } from './labels.js';
 import LiveGrid from './components/LiveGrid.jsx';
@@ -67,56 +67,74 @@ function Dashboard({ onLogout }) {
     }
     const label = rangePreset === '7d' ? L.range7d : rangePreset === '30d' ? L.range30d : L.rangeToday;
     return { range: presetRange(rangePreset), rangeError: null, rangeLabel: label };
-    // refreshKey re-derives `to: now` on manual refresh so the window tracks time.
-  }, [rangePreset, customFrom, customTo, refreshKey]);
+    // Not tied to refreshKey: the window is stable per day (see presetRange), so
+    // auto-refresh re-pulls the same window instead of churning a new one.
+  }, [rangePreset, customFrom, customTo]);
 
-  // Full load: summary + camera list + detection geometry. Used on mount, the
-  // manual refresh button, and after a reset. Toggles the loading state.
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  // Latest summary in a ref so the refresh path can tell "first load" (show the
+  // error) from "transient refresh failure" (keep the last-good cards).
+  const summaryRef = useRef(null);
+  useEffect(() => {
+    summaryRef.current = summary;
+  }, [summary]);
+
+  // Cameras + detection geometry — mount & manual refresh only (range-independent,
+  // so changing the date range never re-hits the camera RPC).
+  const loadCameras = useCallback(async () => {
     try {
-      const [summaryRes, liveRes] = await Promise.all([api.summary(), api.liveConfig()]);
-      setSummary(summaryRes);
+      const liveRes = await api.liveConfig();
       setCameras(liveRes.cameras || []);
       // Detection geometry is best-effort (camera RPC) — never block on it.
       api
         .detectConfig()
         .then((res) => setGeometryByGate(Object.fromEntries((res.cameras || []).map((c) => [c.gate, c.geometry]))))
         .catch(() => setGeometryByGate({}));
+    } catch {
+      /* cameras being offline must not block the KPI / analytics below */
+    }
+  }, []);
+
+  // KPI summary — follows the selected range. Refetches when the range changes and
+  // on every auto-refresh tick. Keeps last-good numbers on a transient failure so
+  // a blip doesn't blank the cards; only surfaces an error if nothing is shown yet.
+  const loadSummary = useCallback(async () => {
+    if (!range) {
+      setLoading(false);
+      return; // invalid custom range → keep whatever cards are on screen
+    }
+    try {
+      const s = await api.summary(range.from, range.to);
+      setSummary(s);
+      setError(null);
     } catch (err) {
-      setError(err.message);
+      if (!summaryRef.current) setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [range]);
 
-  // Silent tick for auto-refresh: just re-read the numbers + nudge the chart.
-  // No spinner, and a transient failure keeps the last-good values on screen.
-  const tick = useCallback(async () => {
-    try {
-      const s = await api.summary();
-      setSummary(s);
-      setError(null);
+  useEffect(() => {
+    loadCameras();
+  }, [loadCameras]);
+
+  // (Re)load the KPI whenever the effective range changes.
+  useEffect(() => {
+    loadSummary();
+  }, [loadSummary]);
+
+  // Auto-refresh loop — bump refreshKey (chart + table refetch) and re-pull KPI.
+  useEffect(() => {
+    const id = setInterval(() => {
       setRefreshKey((k) => k + 1);
-    } catch {
-      /* keep showing the last good numbers */
-    }
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  // Auto-refresh loop — the "real-time" updates.
-  useEffect(() => {
-    const id = setInterval(tick, AUTO_REFRESH_MS);
+      loadSummary();
+    }, AUTO_REFRESH_MS);
     return () => clearInterval(id);
-  }, [tick]);
+  }, [loadSummary]);
 
   const refresh = () => {
     setRefreshKey((k) => k + 1);
-    load();
+    loadCameras();
+    loadSummary();
   };
 
   const toggleDetect = (e) => {
@@ -211,11 +229,11 @@ function Dashboard({ onLogout }) {
         </div>
       ) : (
         <>
-          {/* KPI = today only (backend /api/summary has no range). Labeled so the
-              date range below reads as "analytics scope", not a whole-page filter. */}
+          {/* KPI now follows the selected range (summary range mode). The badge
+              shows the same scope as the chart so the two always read together. */}
           <div className="kpi-section-title">
-            {L.summaryTitle} · {L.rangeToday}
-            <span className="kpi-note">{L.kpiTodayNote}</span>
+            <span>{L.summaryTitle}</span>
+            <span className="scope-badge">{rangeLabel}</span>
           </div>
           <KpiCards summary={summary} />
         </>

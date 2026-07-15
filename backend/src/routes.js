@@ -75,8 +75,62 @@ router.post('/events/crossing', (req, res) => {
 
 // ── Dashboard ────────────────────────────────────────────────────────
 
-// Per-gate occupancy snapshot + combined total for the current business day.
-router.get('/summary', async (_req, res) => {
+// Parse & validate a [from, to) ISO range, shared by /summary (range mode) and
+// /timeseries so the validation lives in one place. Returns { fromDate, toDate }
+// on success, or { error } with the 400 message to send.
+function parseIsoRange(from, to) {
+  const fromDate = new Date(from);
+  const toDate = new Date(to);
+  if (!from || !to || Number.isNaN(fromDate.getTime()) || Number.isNaN(toDate.getTime())) {
+    return { error: 'from and to must be valid ISO timestamps' };
+  }
+  return { fromDate, toDate };
+}
+
+// Per-gate in/out. Default (no from/to) = today's occupancy snapshot from
+// occupancy_state (unchanged legacy behavior). With BOTH from & to present →
+// range mode: aggregate in/out from counting_hourly over [from, to). occupancy
+// has no meaning for a historical range, so it stays 0 (key kept for shape).
+router.get('/summary', async (req, res) => {
+  const { from, to } = req.query;
+
+  // ── Range mode (additive) — only when both bounds are supplied ──
+  if (from && to) {
+    const { fromDate, toDate, error } = parseIsoRange(from, to);
+    if (error) return res.status(400).json({ error });
+    try {
+      const { rows } = await query(
+        `SELECT gate,
+                COALESCE(SUM(count) FILTER (WHERE direction = 'in'), 0)  AS in,
+                COALESCE(SUM(count) FILTER (WHERE direction = 'out'), 0) AS out
+         FROM counting_hourly
+         WHERE hour_bucket >= $1 AND hour_bucket < $2
+         GROUP BY gate`,
+        [fromDate, toDate],
+      );
+      const byGate = new Map(rows.map((r) => [r.gate, r]));
+      const gates = {};
+      const total = { in: 0, out: 0, occupancy: 0 };
+      for (const gate of GATES) {
+        const r = byGate.get(gate);
+        const entry = { in: r ? Number(r.in) : 0, out: r ? Number(r.out) : 0, occupancy: 0 };
+        gates[gate] = entry;
+        total.in += entry.in;
+        total.out += entry.out;
+      }
+      return res.json({
+        gates,
+        total,
+        date: businessDay(new Date()),
+        range: { from: fromDate.toISOString(), to: toDate.toISOString() },
+      });
+    } catch (err) {
+      console.error('[summary range] error:', err.message);
+      return res.status(500).json({ error: 'failed to load summary' });
+    }
+  }
+
+  // ── Default (unchanged): current business-day occupancy snapshot ──
   try {
     const today = businessDay(new Date());
     const { rows } = await query(
@@ -115,12 +169,8 @@ router.get('/summary', async (_req, res) => {
 router.get('/timeseries', async (req, res) => {
   const { from, to } = req.query;
   const gate = req.query.gate || 'all';
-  const fromDate = new Date(from);
-  const toDate = new Date(to);
-
-  if (!from || !to || Number.isNaN(fromDate.getTime()) || Number.isNaN(toDate.getTime())) {
-    return res.status(400).json({ error: 'from and to must be valid ISO timestamps' });
-  }
+  const { fromDate, toDate, error } = parseIsoRange(from, to);
+  if (error) return res.status(400).json({ error });
   if (gate !== 'all' && !GATES.includes(gate)) {
     return res.status(400).json({ error: `invalid gate: ${gate}` });
   }

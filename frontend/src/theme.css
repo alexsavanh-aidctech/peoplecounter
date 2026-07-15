@@ -259,17 +259,13 @@ body {
 
 /* ---- KPI grid ---- */
 .kpi-section-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   font-size: 15px;
   font-weight: 600;
   color: var(--heading);
   margin: 26px 0 2px;
-}
-.kpi-note {
-  display: block;
-  font-size: 12px;
-  font-weight: 400;
-  color: var(--text-muted2);
-  margin-top: 3px;
 }
 
 /* ---- Filter bar (date range + gate) ---- */

@@ -78,8 +78,14 @@ export const api = {
     }
   },
 
-  // { gates: { left, right }, total, date }
-  summary() {
+  // { gates: { left, right }, total, date, range? }
+  // Range mode when both bounds are given (aggregates counting_hourly); otherwise
+  // the legacy "today" snapshot (occupancy_state) — same response shape either way.
+  summary(from, to) {
+    if (from && to) {
+      const params = new URLSearchParams({ from, to });
+      return request(`/summary?${params.toString()}`);
+    }
     return request('/summary?date=today');
   },
 
@@ -128,13 +134,18 @@ function midnight(d) {
 }
 
 // Preset [from, to) window — 'today' | '7d' | '30d'. n calendar days INCLUDING
-// today, from local midnight of the first day to now. Same local-midnight basis
-// as todayRange() so timezone behavior stays consistent across presets.
+// today: from local midnight of the first day, to = next local midnight (end of
+// today). Using end-of-today (not "now") keeps the window STABLE across the day
+// — it doesn't churn on every auto-refresh tick (which would refetch endlessly),
+// yet still covers new hourly buckets as they land (query is hour_bucket < to).
+// Same local-midnight basis as todayRange() so timezone behavior is consistent.
 export function presetRange(preset) {
   const days = preset === '7d' ? 7 : preset === '30d' ? 30 : 1;
   const from = midnight(new Date());
   from.setDate(from.getDate() - (days - 1));
-  return { from: from.toISOString(), to: new Date().toISOString() };
+  const to = midnight(new Date());
+  to.setDate(to.getDate() + 1);
+  return { from: from.toISOString(), to: to.toISOString() };
 }
 
 // Custom [from, to) from two yyyy-mm-dd strings (from <input type="date">).
